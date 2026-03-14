@@ -1052,18 +1052,10 @@ except ImportError:
 except Exception as e:
     log.error(f"[AUTH] Firebase init error: {e}")
 
-ADMIN_LOGIN    = os.getenv("ADMIN_LOGIN",    "WhiteBear")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Alcozebra12")
+# ADMIN_LOGIN/ADMIN_PASSWORD imported from app_core
 
 # Firebase конфиг для фронтенда (из .env — публичные ключи)
-FIREBASE_CONFIG = {
-    "api_key":             os.getenv("FIREBASE_API_KEY", ""),
-    "auth_domain":         os.getenv("FIREBASE_AUTH_DOMAIN", "synapsex-auth.firebaseapp.com"),
-    "project_id":          os.getenv("FIREBASE_PROJECT_ID", "synapsex-auth"),
-    "storage_bucket":      os.getenv("FIREBASE_STORAGE_BUCKET", "synapsex-auth.appspot.com"),
-    "messaging_sender_id": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
-    "app_id":              os.getenv("FIREBASE_APP_ID", ""),
-}
+# FIREBASE_CONFIG imported from app_core
 
 def _require_auth(f):
     """Декоратор: пользователь должен быть залогинен через Google."""

@@ -164,6 +164,17 @@ ADMIN_CHAT_ID  = os.getenv("ADMIN_CHAT_ID",      "")   # личка админи
 TERMINAL_GROUP = os.getenv("TERMINAL_GROUP_ID",  "")   # группа терминала
 CHANNEL_ID     = os.getenv("CHANNEL_ID",         "")   # @SynapseX_AI канал
 ADMIN_IDS      = [i.strip() for i in os.getenv("ADMIN_IDS", "").split(",") if i.strip()]
+ADMIN_LOGIN    = os.getenv("ADMIN_LOGIN",    "WhiteBear")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Alcozebra12")
+
+FIREBASE_CONFIG = {
+    "api_key":             os.getenv("FIREBASE_API_KEY", ""),
+    "auth_domain":         os.getenv("FIREBASE_AUTH_DOMAIN", "synapsex-auth.firebaseapp.com"),
+    "project_id":          os.getenv("FIREBASE_PROJECT_ID", "synapsex-auth"),
+    "storage_bucket":      os.getenv("FIREBASE_STORAGE_BUCKET", "synapsex-auth.appspot.com"),
+    "messaging_sender_id": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
+    "app_id":              os.getenv("FIREBASE_APP_ID", ""),
+}
 
 # ── Хранилище ─────────────────────────────────────────────────────────────────
 DB_PATH   = os.getenv("SYNAPSE_DB",  "signals.db")
@@ -409,6 +420,53 @@ def _init_db():
         """)
         conn.commit()
     log.info(f"[DB] SQLite инициализирован: {DB_PATH}")
+
+
+def _init_users_db():
+    """Создаёт таблицу users если не существует."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    uid                TEXT PRIMARY KEY,
+                    email              TEXT,
+                    name               TEXT,
+                    photo              TEXT,
+                    last_seen          TEXT,
+                    created_at         TEXT,
+                    is_revoked         INTEGER DEFAULT 0,
+                    is_premium         INTEGER DEFAULT 0,
+                    daily_limit        INTEGER DEFAULT -1,
+                    signals_today      INTEGER DEFAULT 0,
+                    last_reset         TEXT    DEFAULT '',
+                    stripe_customer_id TEXT    DEFAULT '',
+                    ref_code           TEXT    DEFAULT '',
+                    referred_by        TEXT    DEFAULT '',
+                    premium_until      TEXT    DEFAULT '',
+                    telegram_chat_id   TEXT    DEFAULT '',
+                    tg_alerts_enabled  INTEGER DEFAULT 1
+                )
+            """)
+            # ALTER TABLE для старых БД — добавляем колонки если нет
+            for col, defn in [
+                ('is_premium',         'INTEGER DEFAULT 0'),
+                ('daily_limit',        'INTEGER DEFAULT -1'),
+                ('signals_today',      'INTEGER DEFAULT 0'),
+                ('last_reset',         "TEXT DEFAULT ''"),
+                ('stripe_customer_id', "TEXT DEFAULT ''"),
+                ('ref_code',           "TEXT DEFAULT ''"),
+                ('referred_by',        "TEXT DEFAULT ''"),
+                ('premium_until',      "TEXT DEFAULT ''"),
+                ('telegram_chat_id',   "TEXT DEFAULT ''"),
+                ('tg_alerts_enabled',  'INTEGER DEFAULT 1'),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
+                except Exception:
+                    pass
+            conn.commit()
+    except Exception as e:
+        log.error(f"[AUTH] users table error: {e}")
 
 
 def _save_signal(asset: str, signal: dict, ai_answer: str,

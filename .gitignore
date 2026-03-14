@@ -10,3 +10,7 @@ venv/
 *.exe
 *.msi
 Рабочий стол/
+
+firebase_key.json
+
+signals.db

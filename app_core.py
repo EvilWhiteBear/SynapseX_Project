@@ -940,6 +940,3 @@ def _check_and_increment_daily(uid: str) -> dict:
     except Exception as e:
         log.warning(f"[LIMIT] check error: {e}")
         return {"ok": True, "used": 0, "limit": limit}
-
-
-

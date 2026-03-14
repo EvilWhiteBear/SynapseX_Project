@@ -25,7 +25,7 @@ from app_core import (
     _SIGNAL_LIMITS, _load_limits_from_db, _save_limit_to_db,
     _get_signal_limit, _get_referral_bonus, _check_and_increment_daily,
     _full_cleanup, _start_full_cleanup_scheduler,
-    _warm_cache, _log_import_status,
+    _log_import_status,
     init_stripe_db, create_checkout_session, create_portal_session,
     handle_webhook, get_subscription_info,
     init_crypto_db, create_crypto_payment, handle_crypto_webhook,
@@ -39,6 +39,10 @@ from flask import (
     request, jsonify, session, redirect, url_for,
     render_template, Response, stream_with_context
 )
+
+# ── Версия приложения ─────────────────────────────────────────────────────────
+APP_VERSION = "2.0.0"   # app_core.py + app.py split, NOWPayments, bilingual premium
+APP_BUILD   = "2026-03-14"
 
 @app.route('/api/prices')
 def api_prices():

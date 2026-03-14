@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ L.terminal_title }}</title>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   SYNAPSE ULTIMATUM — LIQUID INTELLIGENCE DESIGN SYSTEM
+   ═══════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:     #070a10;
+  --s0:      #0b0e18;
+  --s1:      #10141f;
+  --s2:      #151a27;
+  --panel:   rgba(11,14,24,0.92);
+
+  --ember:   #e89f1c;
+  --ember-s: rgba(232,159,28,0.11);
+  --ember-g: rgba(232,159,28,0.32);
+  --ice:     #34d8f0;
+  --ice-s:   rgba(52,216,240,0.08);
+  --ice-g:   rgba(52,216,240,0.28);
+  --coral:   #ff5565;
+  --mint:    #00e09a;
+
+  --t1: #eceef5;
+  --t2: rgba(236,238,245,0.58);
+  --t3: rgba(236,238,245,0.33);
+  --t4: rgba(236,238,245,0.16);
+
+  --b0: rgba(255,255,255,0.035);
+  --b1: rgba(255,255,255,0.07);
+  --b2: rgba(255,255,255,0.12);
+  --be: rgba(232,159,28,0.2);
+  --bi: rgba(52,216,240,0.17);
+
+  --r1: 8px;
+  --r2: 14px;
+  --r3: 20px;
+
+  --fd: 'Syne', sans-serif;
+  --fb: 'Outfit', sans-serif;
+  --fm: 'DM Mono', monospace;
+}
+
+html, body {
+  width: 100vw; height: 100vh; overflow: hidden;
+  background: var(--ink); color: var(--t1);
+  font-family: var(--fb);
+  display: flex; flex-direction: column;
+}
+
+/* ── AMBIENT WORLD ── */
+.world { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.w-mesh {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at -8% 50%,  rgba(52,216,240,0.05) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 80% at 108% 50%, rgba(232,159,28,0.05) 0%, transparent 65%),
+    radial-gradient(ellipse 80% 45% at 50% 105%, rgba(255,85,101,0.04) 0%, transparent 55%);
+}
+.w-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--b0) 1px, transparent 1px),
+    linear-gradient(90deg, var(--b0) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 85% 85% at 50% 50%, black 30%, transparent 100%);
+}
+.w-noise {
+  position: absolute; inset: 0; opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px;
+}
+.w-orb {
+  position: absolute; width: 700px; height: 700px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(52,216,240,0.035) 0%, transparent 70%);
+  top: 50%; left: 30%; transform: translate(-50%,-50%);
+  animation: orb 20s ease-in-out infinite alternate;
+}
+@keyframes orb {
+  0%   { transform: translate(-50%,-55%) scale(1); }
+  50%  { transform: translate(-45%,-48%) scale(1.1); }
+  100% { transform: translate(-55%,-52%) scale(0.95); }
+}
+
+#matrix-canvas { position: fixed; inset: 0; opacity: 0.09; z-index: 0; pointer-events: none; }
+
+/* CRT scanlines */
+body::after {
+  content: ""; position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+  z-index: 9999; pointer-events: none; opacity: 0.5;
+}
+
+/* ── TOP BAR ── */
+.bar {
+  height: 50px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  background: rgba(7,10,16,0.97);
+  border-bottom: 1px solid var(--b1);
+  position: relative; z-index: 100;
+  backdrop-filter: blur(30px);
+}
+.bar::after {
+  content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ice) 25%, var(--ember) 50%, var(--ice) 75%, transparent);
+  opacity: 0.18;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 30px; height: 30px; border: 1.5px solid var(--ember); border-radius: var(--r1);
+  display: grid; place-items: center; font-size: 14px; color: var(--ember);
+  box-shadow: 0 0 14px var(--ember-g), inset 0 0 10px rgba(232,159,28,0.06);
+  position: relative;
+}
+.logo-mark::after {
+  content: ""; position: absolute; inset: 3px;
+  border: 1px solid rgba(232,159,28,0.25); border-radius: 4px;
+}
+.logo-text {
+  font-family: var(--fd); font-size: 12px; font-weight: 800;
+  letter-spacing: 5px; text-transform: uppercase;
+  background: linear-gradient(120deg, var(--ember), #f0cc5a, var(--ice));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.bar-center {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+}
+.pill-on {
+  display: flex; align-items: center; gap: 5px; padding: 4px 11px;
+  border-radius: 20px; background: rgba(0,224,154,0.09);
+  border: 1px solid rgba(0,224,154,0.22); color: var(--mint);
+  font-family: var(--fm); font-size: 9px; letter-spacing: 1.5px;
+}
+.dot-live {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--mint); box-shadow: 0 0 7px var(--mint);
+  animation: blink 2.2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.28;} }
+
+.bar-right { display: flex; align-items: center; gap: 12px; }
+.clock {
+  font-family: var(--fm); font-size: 12px; letter-spacing: 2px;
+  color: var(--ember); text-shadow: 0 0 12px var(--ember-g);
+}
+.lang a {
+  font-family: var(--fm); font-size: 9px; color: var(--t3); text-decoration: none;
+  padding: 3px 7px; border-radius: 4px; border: 1px solid transparent;
+  letter-spacing: 1px; transition: all 0.2s;
+}
+.lang a:hover, .lang a.on { color: var(--ember); border-color: var(--be); background: var(--ember-s); }
+.ov-btn {
+  display: flex; align-items: center; gap: 6px; padding: 5px 12px;
+  background: var(--b1); border: 1px solid var(--b2); border-radius: var(--r1);
+  color: var(--t2); font-family: var(--fm); font-size: 9px; letter-spacing: 1.5px;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.ov-btn:hover { background: var(--ember-s); border-color: var(--be); color: var(--ember); }
+.ov-btn.pf-btn:hover { background: var(--ice-s); border-color: var(--bi); color: var(--ice); }
+
+/* ── HERO STRIP ── */
+.hero {
+  flex-shrink: 0; position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 24px 2px;
+  animation: rise 0.5s ease both;
+}
+@keyframes rise { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+.hero-h1 {
+  font-family: var(--fd); font-size: 25px; font-weight: 800;
+  letter-spacing: 7px; text-transform: uppercase; line-height: 1;
+  background: linear-gradient(115deg, var(--ember) 0%, #f5ce5a 28%, var(--t1) 55%, var(--ice) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: shimmer 5s linear infinite;
+}
+@keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
+.hero-meta {
+  display: flex; gap: 16px; font-family: var(--fm); font-size: 8px; color: var(--t3); letter-spacing: 1.5px;
+}
+.hm { display: flex; align-items: center; gap: 5px; }
+.hm-dot { width: 4px; height: 4px; border-radius: 50%; }
+
+/* ── LAYOUT ── */
+.layout {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 295px 1fr 338px;
+  gap: 10px; padding: 0 18px 14px;
+  position: relative; z-index: 10;
+}
+.cl { transform: perspective(1100px) rotateY(8deg); transform-origin: left center; display:flex; flex-direction:column; gap:10px; min-height:0; animation: rise 0.6s 0.1s ease both; }
+.cm { transform: perspective(1100px) translateZ(-28px); min-height:0; animation: rise 0.6s 0.2s ease both; }
+.cr { transform: perspective(1100px) rotateY(-8deg); transform-origin: right center; display:flex; flex-direction:column; gap:10px; min-height:0; animation: rise 0.6s 0.3s ease both; }
+
+/* ── CARD ── */
+.card {
+  background: var(--panel); border: 1px solid var(--b1); border-radius: var(--r3);
+  backdrop-filter: blur(32px); position: relative; overflow: hidden;
+  display: flex; flex-direction: column; min-height: 0;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.card:hover { border-color: var(--b2); box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+.card::before {
+  content: ""; position: absolute; top:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--ember) 35%, var(--ice) 65%, transparent);
+  opacity: 0.2; border-radius: var(--r3) var(--r3) 0 0;
+}
+.card::after {
+  content: ""; position: absolute; inset:0; pointer-events:none;
+  border-radius: var(--r3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045), inset 0 -1px 0 rgba(0,0,0,0.35);
+}
+
+/* ── CARD HEADER ── */
+.ch { display:flex; align-items:center; justify-content:space-between; padding:11px 15px 9px; border-bottom:1px solid var(--b0); flex-shrink:0; }
+.ch-l { display:flex; align-items:center; gap:8px; }
+.ch-icon { width:24px; height:24px; background:var(--ember-s); border:1px solid var(--be); border-radius:var(--r1); display:grid; place-items:center; font-size:10px; color:var(--ember); }
+.ch-title { font-family:var(--fd); font-size:9px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--t1); }
+
+.badge { font-family:var(--fm); font-size:8px; letter-spacing:1px; padding:2px 8px; border-radius:12px; }
+.b-live { background:rgba(0,224,154,0.1); border:1px solid rgba(0,224,154,0.22); color:var(--mint); }
+.b-ice  { background:var(--ice-s); border:1px solid var(--bi); color:var(--ice); }
+.b-act  { background:transparent; border:1px solid rgba(255,85,101,0.22); color:var(--coral); cursor:pointer; transition:all 0.2s; }
+.b-act:hover { background:rgba(255,85,101,0.09); border-color:var(--coral); }
+
+/* ── WATCHLIST ── */
+.wl { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--b2) transparent; }
+.wl::-webkit-scrollbar{width:3px;} .wl::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
+.cr-row {
+  display:flex; align-items:center; gap:8px; padding:7px 14px;
+  border-bottom:1px solid var(--b0); cursor:pointer; transition:all 0.15s; position:relative;
+}
+.cr-row::before { content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:transparent; transition:background 0.2s; }
+.cr-row:hover { background:rgba(232,159,28,0.05); }
+.cr-row:hover::before { background:var(--ember); }
+.cr-row.on { background:var(--ice-s); }
+.cr-row.on::before { background:var(--ice); }
+.cr-row.on .cr-sym { color:var(--ice); }
+.cr-num { font-family:var(--fm); font-size:9px; color:var(--t4); width:17px; text-align:right; flex-shrink:0; }
+.cr-sym { flex:1; font-family:var(--fm); font-size:11px; font-weight:500; }
+.cr-chg { font-family:var(--fm); font-size:11px; font-weight:500; }
+.up  { color:var(--mint); text-shadow:0 0 7px rgba(0,224,154,0.4); }
+.dn  { color:var(--coral); text-shadow:0 0 7px rgba(255,85,101,0.4); }
+
+/* ── SPHERE ── */
+.sph { height:128px; border-top:1px solid var(--b0); flex-shrink:0; position:relative; overflow:hidden; background:radial-gradient(ellipse at center, rgba(52,216,240,0.04) 0%, transparent 70%); }
+.sph-lbl { position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-family:var(--fm); font-size:7px; color:var(--t4); letter-spacing:3px; white-space:nowrap; pointer-events:none; }
+
+/* ── PULSE ── */
+.pulse-box { padding:11px 15px; flex-shrink:0; }
+.pulse-hd  { display:flex; justify-content:space-between; margin-bottom:7px; font-family:var(--fm); font-size:8px; color:var(--t3); letter-spacing:1.5px; }
+.pulse-trk { height:3px; background:var(--b1); border-radius:3px; overflow:hidden; margin-bottom:5px; }
+.pulse-fill { height:100%; background:linear-gradient(90deg,var(--ice),rgba(52,216,240,0.35)); border-radius:3px; box-shadow:0 0 10px var(--ice-g); animation:breathe 3.5s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+.pulse-ft { display:flex; justify-content:space-between; font-family:var(--fm); font-size:8px; color:var(--t4); }
+
+/* ── CHART ── */
+.chart-wrap { height:100%; position:relative; border-radius:var(--r3); overflow:hidden; }
+.crnr { position:absolute; width:18px; height:18px; z-index:5; pointer-events:none; }
+.crnr.tl{top:8px;left:8px; border-top:2px solid var(--ember); border-left:2px solid var(--ember); border-radius:3px 0 0 0; opacity:.55;}
+.crnr.tr{top:8px;right:8px; border-top:2px solid var(--ice); border-right:2px solid var(--ice); border-radius:0 3px 0 0; opacity:.4;}
+.crnr.bl{bottom:8px;left:8px; border-bottom:2px solid var(--ice); border-left:2px solid var(--ice); border-radius:0 0 0 3px; opacity:.4;}
+.crnr.br{bottom:8px;right:8px; border-bottom:2px solid var(--ember); border-right:2px solid var(--ember); border-radius:0 0 3px 0; opacity:.55;}
+#tradingview_widget { width:100%; height:100%; }
+
+/* ── RISK CALCULATOR ── */
+.rw { padding:13px 15px 11px; flex-shrink:0; }
+.ip-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:11px; }
+.ip label { display:block; font-family:var(--fm); font-size:8px; color:var(--t3); letter-spacing:1.5px; margin-bottom:4px; text-transform:uppercase; }
+.ip input {
+  width:100%; background:var(--s1); border:1px solid var(--b1); border-radius:var(--r1);
+  color:var(--t1); padding:8px 10px; font-family:var(--fm); font-size:13px; font-weight:500; outline:none; transition:all 0.2s;
+}
+.ip input:focus { border-color:var(--bi); box-shadow:0 0 0 3px rgba(52,216,240,0.06); color:var(--ice); }
+.pos-box {
+  background:linear-gradient(135deg,rgba(232,159,28,0.09),rgba(52,216,240,0.06));
+  border:1px solid var(--be); border-radius:var(--r2);
+  padding:10px 13px; display:flex; align-items:center; justify-content:space-between;
+}
+.pos-lbl { font-family:var(--fm); font-size:8px; color:var(--t3); letter-spacing:1.5px; }
+#pos-size {
+  font-family:var(--fd); font-size:20px; font-weight:700;
+  color:var(--ember); text-shadow:0 0 14px var(--ember-g); letter-spacing:1px;
+}
+
+/* ── CHAT ── */
+.chat-body { flex:1; overflow-y:auto; min-height:0; padding:11px 13px; scrollbar-width:thin; scrollbar-color:var(--b1) transparent; }
+.chat-body::-webkit-scrollbar{width:3px;} .chat-body::-webkit-scrollbar-thumb{background:var(--b1);border-radius:2px;}
+.msg { margin-bottom:9px; font-size:12px; line-height:1.65; }
+.msg-u { margin-left:14%; background:var(--ember-s); border:1px solid var(--be); border-radius:var(--r2) var(--r2) 4px var(--r2); padding:8px 12px; text-align:right; color:var(--t2); }
+.msg-a { margin-right:4%; background:var(--s1); border:1px solid var(--b1); border-radius:4px var(--r2) var(--r2) var(--r2); padding:9px 12px; color:var(--t1); white-space:pre-wrap; }
+.msg-a-tag { display:block; font-family:var(--fm); font-size:7px; color:var(--ice); letter-spacing:2px; margin-bottom:5px; opacity:.65; }
+.chat-foot { padding:9px 12px; border-top:1px solid var(--b0); display:flex; gap:7px; flex-shrink:0; background:rgba(7,10,16,0.65); }
+.chat-inp {
+  flex:1; background:var(--s1); border:1px solid var(--b1); border-radius:var(--r1);
+  color:var(--t1); padding:8px 11px; font-family:var(--fm); font-size:11px; outline:none; transition:all 0.2s;
+}
+.chat-inp::placeholder { color:var(--t4); }
+.chat-inp:focus { border-color:var(--bi); box-shadow:0 0 0 3px rgba(52,216,240,0.06); }
+.btn-exec {
+  background:var(--ember); border:none; border-radius:var(--r1);
+  color:var(--ink); padding:8px 18px; font-family:var(--fd); font-size:9px; font-weight:800;
+  letter-spacing:2.5px; text-transform:uppercase; cursor:pointer; transition:all 0.2s;
+  white-space:nowrap; box-shadow:0 2px 14px var(--ember-g);
+}
+.btn-exec:hover { background:#f5c83a; box-shadow:0 4px 22px var(--ember-g),0 0 32px rgba(232,159,28,0.28); transform:translateY(-1px); }
+.btn-exec:active { transform:translateY(0); }
+
+/* ── RISK BLOCK IN CHAT ── */
+.rc-block { background:linear-gradient(135deg,rgba(0,224,154,0.05),rgba(255,85,101,0.05)); border:1px solid var(--b1); border-radius:var(--r1); padding:8px 10px; margin-bottom:8px; font-family:var(--fm); font-size:10px; }
+.rc-tag { font-size:7px; color:var(--t4); letter-spacing:2px; margin-bottom:5px; }
+.rc-row { display:flex; justify-content:space-between; align-items:center; padding:2px 0; }
+.uv { color:var(--mint); font-weight:600; text-shadow:0 0 7px rgba(0,224,154,0.45); }
+.dv { color:var(--coral); font-weight:600; text-shadow:0 0 7px rgba(255,85,101,0.45); }
+
+/* ── TERMINATE ── */
+.btn-terminate {
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  text-decoration:none; padding:9px; flex-shrink:0;
+  border:1px solid rgba(255,85,101,0.18); border-radius:var(--r1);
+  background:transparent; color:rgba(255,85,101,0.5);
+  font-family:var(--fm); font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  cursor:pointer; transition:all 0.25s;
+}
+.btn-terminate:hover { border-color:var(--coral); color:var(--coral); background:rgba(255,85,101,0.07); box-shadow:0 0 18px rgba(255,85,101,0.14); }
+
+/* ══════════════════════════════════════
+   OVERLAYS — TRADE JOURNAL + PORTFOLIO
+   ══════════════════════════════════════ */
+.ov-backdrop {
+  position:fixed; inset:0; z-index:500;
+  background:rgba(4,6,12,0.78); backdrop-filter:blur(12px);
+  opacity:0; pointer-events:none; transition:opacity 0.3s ease;
+}
+.ov-backdrop.show { opacity:1; pointer-events:all; }
+
+.ov-panel {
+  position:fixed; z-index:600;
+  background:rgba(10,13,22,0.98); border:1px solid var(--b2); border-radius:var(--r3);
+  display:flex; flex-direction:column;
+  box-shadow:0 30px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+  opacity:0; pointer-events:none;
+  transform:translateY(20px) scale(0.97);
+  transition:opacity 0.3s ease, transform 0.3s ease;
+  overflow:hidden;
+}
+.ov-panel::before {
+  content:""; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--ember) 30%,var(--ice) 70%,transparent);
+  opacity:0.35;
+}
+.ov-panel.show { opacity:1; pointer-events:all; transform:translateY(0) scale(1); }
+
+.ov-journal  { width:min(860px,92vw); height:min(600px,88vh); top:50%; left:50%; transform:translate(-50%,-50%) translateY(20px) scale(0.97); }
+.ov-journal.show  { transform:translate(-50%,-50%) translateY(0) scale(1); }
+.ov-portfolio { width:min(780px,92vw); height:min(560px,85vh); top:50%; left:50%; transform:translate(-50%,-50%) translateY(20px) scale(0.97); }
+.ov-portfolio.show { transform:translate(-50%,-50%) translateY(0) scale(1); }
+.ov-profile.show  { transform:translate(-50%,-50%) translateY(0) scale(1); }
+
+.ov-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 14px; border-bottom:1px solid var(--b1); flex-shrink:0; }
+.ov-title-group { display:flex; align-items:center; gap:10px; }
+.ov-icon { width:32px; height:32px; border-radius:var(--r1); display:grid; place-items:center; font-size:14px; }
+.ov-h1 { font-family:var(--fd); font-size:13px; font-weight:800; letter-spacing:3px; text-transform:uppercase; }
+.ov-close { width:30px; height:30px; background:var(--b1); border:1px solid var(--b2); border-radius:var(--r1); color:var(--t3); font-size:16px; display:grid; place-items:center; cursor:pointer; transition:all 0.2s; }
+.ov-close:hover { background:rgba(255,85,101,0.12); border-color:var(--coral); color:var(--coral); }
+
+.ov-body { flex:1; overflow:hidden; display:flex; flex-direction:column; min-height:0; }
+.ov-scroll { flex:1; overflow-y:auto; padding:18px 20px; scrollbar-width:thin; scrollbar-color:var(--b2) transparent; }
+.ov-scroll::-webkit-scrollbar{width:3px;} .ov-scroll::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
+
+/* Portfolio */
+.pf-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+.pf-stat { background:var(--s1); border:1px solid var(--b1); border-radius:var(--r2); padding:14px 16px; position:relative; overflow:hidden; }
+.pf-stat::before { content:""; position:absolute; top:0; left:0; right:0; height:2px; }
+.pf-stat.g::before { background:linear-gradient(90deg,var(--mint),transparent); }
+.pf-stat.e::before { background:linear-gradient(90deg,var(--ember),transparent); }
+.pf-stat.i::before { background:linear-gradient(90deg,var(--ice),transparent); }
+.pf-stat-label { font-family:var(--fm); font-size:8px; color:var(--t3); letter-spacing:1.5px; margin-bottom:6px; }
+.pf-stat-val { font-family:var(--fd); font-size:22px; font-weight:700; line-height:1; }
+.pf-stat-sub { font-family:var(--fm); font-size:9px; color:var(--t3); margin-top:3px; }
+.pf-section-title { font-family:var(--fd); font-size:9px; font-weight:700; letter-spacing:2px; color:var(--t3); text-transform:uppercase; margin-bottom:10px; }
+.pf-row { display:grid; grid-template-columns:1fr 70px 80px 90px 80px 70px 70px 1fr; align-items:center; padding:10px 12px; background:var(--s1); border:1px solid var(--b0); border-radius:var(--r1); margin-bottom:6px; font-family:var(--fm); font-size:11px; transition:border-color 0.15s; }
+.pf-row:hover { border-color:var(--b2); }
+.pf-row.hdr { background:transparent; border:none; font-size:8px; color:var(--t4); letter-spacing:1.5px; padding-bottom:4px; }
+.pf-asset { font-weight:600; color:var(--t1); }
+.pf-long  { color:var(--mint); font-size:9px; letter-spacing:1px; }
+.pf-short { color:var(--coral); font-size:9px; letter-spacing:1px; }
+.pf-pos { color:var(--mint); font-weight:600; }
+.pf-neg { color:var(--coral); font-weight:600; }
+.pf-close-btn { background:rgba(255,85,101,0.1); border:1px solid rgba(255,85,101,0.2); border-radius:4px; color:var(--coral); font-size:9px; padding:2px 8px; cursor:pointer; transition:all 0.2s; font-family:var(--fm); }
+.pf-close-btn:hover { background:rgba(255,85,101,0.2); }
+.eq-chart-wrap { background:var(--s1); border:1px solid var(--b1); border-radius:var(--r2); padding:14px 16px; margin-top:16px; }
+.eq-chart-label { font-family:var(--fm); font-size:8px; color:var(--t3); letter-spacing:1.5px; margin-bottom:10px; }
+canvas.eq-cv { width:100%; height:100%; display:block; }
+
+/* Journal */
+.tj-tabs { display:flex; gap:4px; padding:12px 20px 0; border-bottom:1px solid var(--b1); flex-shrink:0; }
+.tj-tab { padding:7px 16px 9px; font-family:var(--fm); font-size:9px; letter-spacing:1.5px; color:var(--t3); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; margin-bottom:-1px; }
+.tj-tab:hover { color:var(--t1); }
+.tj-tab.on { color:var(--ember); border-bottom-color:var(--ember); }
+.tj-pane { display:none; } .tj-pane.on { display:block; }
+.tj-add-form { background:var(--s1); border:1px solid var(--b1); border-radius:var(--r2); padding:16px; margin-bottom:18px; }
+.tj-form-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+.tj-field label { display:block; font-family:var(--fm); font-size:8px; color:var(--t3); letter-spacing:1.5px; margin-bottom:4px; }
+.tj-field input, .tj-field select { width:100%; background:var(--s2); border:1px solid var(--b1); border-radius:var(--r1); color:var(--t1); padding:7px 9px; font-family:var(--fm); font-size:11px; outline:none; transition:all 0.2s; }
+.tj-field select option { background:var(--s1); }
+.tj-field input:focus, .tj-field select:focus { border-color:var(--bi); box-shadow:0 0 0 3px rgba(52,216,240,0.05); }
+.tj-add-btn { background:var(--ember); border:none; border-radius:var(--r1); color:var(--ink); padding:8px 20px; font-family:var(--fd); font-size:9px; font-weight:800; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 12px var(--ember-g); }
+.tj-add-btn:hover { background:#f5c83a; transform:translateY(-1px); }
+.tj-note-input { width:100%; background:var(--s2); border:1px solid var(--b1); border-radius:var(--r1); color:var(--t1); padding:8px 10px; font-family:var(--fm); font-size:11px; outline:none; resize:none; transition:all 0.2s; margin-bottom:10px; display:block; }
+.tj-note-input:focus { border-color:var(--bi); }
+.tj-row { display:grid; grid-template-columns:80px 1fr 60px 55px 90px 90px 75px 75px 1fr; align-items:center; gap:6px; padding:10px 12px; background:var(--s1); border:1px solid var(--b0); border-radius:var(--r1); margin-bottom:6px; font-family:var(--fm); font-size:11px; transition:border-color 0.15s; }
+.tj-row:hover { border-color:var(--b2); }
+.tj-row.hdr { background:transparent; border:none; font-size:8px; color:var(--t4); letter-spacing:1.5px; padding-bottom:4px; }
+.tj-long  { color:var(--mint); font-size:9px; letter-spacing:1px; }
+.tj-short { color:var(--coral); font-size:9px; letter-spacing:1px; }
+.tj-note  { color:var(--t3); font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tj-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+.tj-sc { background:var(--s1); border:1px solid var(--b1); border-radius:var(--r2); padding:12px 14px; text-align:center; }
+.tj-sc-lbl { font-family:var(--fm); font-size:8px; color:var(--t3); letter-spacing:1.5px; margin-bottom:5px; }
+.tj-sc-val { font-family:var(--fd); font-size:18px; font-weight:700; }
+.wr-ring { position:relative; width:90px; height:90px; margin:0 auto 8px; }
+.wr-ring svg { transform:rotate(-90deg); }
+.wr-ring-val { position:absolute; inset:0; display:grid; place-items:center; font-family:var(--fd); font-size:16px; font-weight:800; color:var(--mint); }
+
+/* ── MOBILE ── */
+@media (max-width:1200px) {
+  html, body { height:auto !important; min-height:100vh !important; overflow:auto !important; display:block !important; }
+  .layout { display:flex !important; flex-direction:column !important; padding:10px !important; gap:12px !important; }
+  .cl,.cm,.cr { transform:none !important; width:100% !important; height:auto !important; }
+  .cm { height:460px !important; }
+  .hero-h1 { font-size:18px !important; letter-spacing:4px !important; }
+  .wl { height:250px !important; flex:none !important; }
+  .chat-body { height:270px !important; flex:none !important; }
+  .sph { height:100px !important; }
+  .bar-center { display:none !important; }
+  .hero-meta { display:none !important; }
+  .pf-summary { grid-template-columns:1fr !important; }
+  .pf-row { grid-template-columns:1fr 60px 70px 60px !important; }
+  .pf-row > *:nth-child(n+5) { display:none !important; }
+  .tj-form-grid { grid-template-columns:repeat(2,1fr) !important; }
+  .tj-row { grid-template-columns:70px 1fr 55px 45px 75px !important; }
+  .tj-row > *:nth-child(n+6) { display:none !important; }
+}
+
+.tf-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 4px 8px; cursor: pointer;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(240,244,255,0.5);
+  transition: all 0.2s; text-transform: uppercase;
+}
+.tf-btn:hover { border-color: var(--acid); color: var(--acid); }
+.tf-btn.tf-active {
+  background: rgba(184,255,0,0.1);
+  border-color: var(--acid); color: var(--acid);
+  box-shadow: 0 0 8px rgba(184,255,0,0.2);
+}
+
+.btn-mode {
+  flex: 1;
+  height: 32px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 700;
+}
+.btn-long {
+  background: rgba(0,255,100,0.08);
+  border-color: rgba(0,255,100,0.35);
+  color: #00ff64;
+}
+.btn-long:hover { background: rgba(0,255,100,0.18); box-shadow: 0 0 12px rgba(0,255,100,0.2); }
+.btn-short {
+  background: rgba(255,30,80,0.08);
+  border-color: rgba(255,30,80,0.35);
+  color: #ff1e50;
+}
+.btn-short:hover { background: rgba(255,30,80,0.18); box-shadow: 0 0 12px rgba(255,30,80,0.2); }
+.btn-optimal {
+  background: rgba(0,229,255,0.08);
+  border-color: rgba(0,229,255,0.35);
+  color: #00e5ff;
+}
+.btn-optimal:hover { background: rgba(0,229,255,0.18); box-shadow: 0 0 12px rgba(0,229,255,0.2); }
+.btn-mode:active { transform: scale(0.97); }
+
+/* ── User Pill (header) ─────────────────────────────── */
+.user-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid rgba(123,0,255,0.25);
+  background: rgba(123,0,255,0.06);
+  cursor: pointer; transition: all 0.2s; height: 36px;
+}
+.user-pill:hover { border-color: rgba(123,0,255,0.5); background: rgba(123,0,255,0.12); }
+.user-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+.user-ava-ph {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #7b00ff, #00e5ff);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Bebas Neue', sans-serif; font-size: 14px; color: #fff;
+}
+.user-pill-info { display: flex; flex-direction: column; gap: 1px; }
+.user-pill-name {
+  font-family: 'Share Tech Mono', monospace; font-size: 10px;
+  color: #f0f4ff; letter-spacing: 1px; line-height: 1;
+}
+.user-pill-badge {
+  font-family: 'Share Tech Mono', monospace; font-size: 8px;
+  letter-spacing: 1px; line-height: 1;
+}
+.badge-prem { color: #b8ff00; }
+.badge-free { color: rgba(240,244,255,0.35); }
+
+/* ── Profile overlay stat cards ─────────────────────── */
+.prof-stat-card {
+  background: rgba(123,0,255,0.06); border: 1px solid rgba(123,0,255,0.2);
+  padding: 10px 8px; text-align: center;
+}
+.prof-stat-val {
+  font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+  color: #00e5ff; letter-spacing: 2px; line-height: 1;
+}
+.prof-stat-lbl {
+  font-family: 'Share Tech Mono', monospace; font-size: 8px;
+  color: rgba(240,244,255,0.35); letter-spacing: 1px; margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ── Disclaimer bigger ───────────────────────────────── */
+.disclaimer-block {
+  margin-top: 14px; padding: 12px 16px;
+  background: rgba(255,200,0,0.08); border: 1px solid rgba(255,200,0,0.3);
+  font-family: 'Share Tech Mono', monospace; font-size: 11px;
+  color: rgba(255,200,0,0.9); line-height: 1.7; letter-spacing: 0.5px;
+}
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+/* Отступ снизу чтобы тикер не перекрывал контент */
+body { padding-bottom: 28px; }
+</style>
+</head>
+<body data-premium="{{ '1' if user.is_premium else '0' }}">
+
+<div class="world">
+  <div class="w-mesh"></div>
+  <div class="w-grid"></div>
+  <div class="w-noise"></div>
+  <div class="w-orb"></div>
+</div>
+<canvas id="matrix-canvas"></canvas>
+
+<!-- ═══════════ TOP BAR ═══════════ -->
+<header class="bar">
+  <div class="logo">
+    <div class="logo-mark">◈</div>
+    <span class="logo-text">Synapse</span>
+  </div>
+
+  <div class="bar-center">
+    <div class="pill-on">
+      <span class="dot-live"></span>
+      UPLINK ACTIVE
+    </div>
+  </div>
+
+  <div class="bar-right">
+    <button class="ov-btn" onclick="openOverlay('journal')">📒 JOURNAL</button>
+    <button class="ov-btn pf-btn" onclick="openOverlay('portfolio')">◈ PORTFOLIO</button>
+    <!-- Счётчик сигналов -->
+    <div id="signal-counter" style="
+      display:none; align-items:center; gap:6px;
+      padding:4px 10px; border:1px solid rgba(232,159,28,0.25);
+      background:rgba(232,159,28,0.06); font-family:var(--fm);
+      font-size:9px; letter-spacing:1px; color:var(--t2);
+    ">
+      <span id="sc-used" style="color:var(--ember)">0</span>/<span id="sc-limit">2</span>
+      <span id="sc-label">СИГНАЛОВ</span>
+    </div>
+    <div id="hud-clock" class="clock">00:00:00.000</div>
+    <div class="lang" style="display:flex;gap:4px;">
+      <a href="/set_lang/RU" class="{% if current_lang == 'RU' %}on{% endif %}">RU</a>
+      <a href="/set_lang/EN" class="{% if current_lang == 'EN' %}on{% endif %}">EN</a>
+    </div>
+    <!-- Профиль пользователя -->
+    <div class="user-pill" onclick="openOverlay('profile')" title="Профиль">
+      {% if user.photo %}
+        <img src="{{ user.photo }}" class="user-ava" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="user-ava-ph" style="display:none">{{ (user.name or 'U')[0] }}</div>
+      {% else %}
+        <div class="user-ava-ph">{{ (user.name or 'U')[0] }}</div>
+      {% endif %}
+      <div class="user-pill-info">
+        <span class="user-pill-name">{{ (user.name or 'USER')[:14] }}</span>
+        <span class="user-pill-badge {% if user.is_premium %}badge-prem{% else %}badge-free{% endif %}">
+          {% if user.is_premium %}★ PREMIUM{% else %}FREE{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════ HERO ═══════════ -->
+<div class="hero">
+  <h1 class="hero-h1">SYNAPSE&nbsp;ULTIMATUM</h1>
+  <div class="hero-meta">
+    <span class="hm"><span class="hm-dot" style="background:var(--mint)"></span>AI ENGINE V8.5</span>
+    <span class="hm"><span class="hm-dot" style="background:var(--ember)"></span>REAL-TIME</span>
+    <span class="hm"><span class="hm-dot" style="background:var(--ice)"></span>MULTI-ASSET</span>
+  </div>
+</div>
+
+<!-- ═══════════ MAIN GRID ═══════════ -->
+<div class="layout">
+
+  <!-- LEFT: WATCHLIST -->
+  <aside class="cl">
+    <div class="card" style="flex:1;overflow:hidden;">
+      <div class="ch">
+        <div class="ch-l">
+          <div class="ch-icon">◎</div>
+          <span class="ch-title">{{ L.watchlist_title }}</span>
+        </div>
+        <span class="badge b-live">● LIVE</span>
+      </div>
+      <div id="watchlist-container" class="wl"></div>
+      <div id="neuro-sphere" class="sph">
+        <span class="sph-lbl">NEURAL CORE ◈ ACTIVE</span>
+      </div>
+    </div>
+
+    <div class="card pulse-box">
+      <div class="pulse-hd">
+        <span>NETWORK PULSE</span>
+        <span style="color:var(--ice)">65% STABLE</span>
+      </div>
+      <div class="pulse-trk"><div class="pulse-fill" style="width:65%"></div></div>
+      <div class="pulse-ft">
+        <span>LATENCY 4ms</span><span>THROUGHPUT OK</span><span>TLS 1.3</span>
+      </div>
+    </div>
+
+    <!-- ◈ MARKET CONTEXT -->
+    <div class="card" id="market-ctx-card" style="padding:10px 12px;">
+      <div style="font-family:var(--fm);font-size:7px;color:var(--ice);letter-spacing:2px;margin-bottom:8px;">◈ MARKET CONTEXT</div>
+      <!-- Fear & Greed -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div id="fg-gauge" style="
+          width:36px;height:36px;border-radius:50%;
+          border:2px solid var(--b1);
+          display:flex;align-items:center;justify-content:center;
+          font-family:var(--fm);font-size:11px;font-weight:700;
+          color:#ffff00;flex-shrink:0;
+        ">–</div>
+        <div>
+          <div style="font-family:var(--fm);font-size:8px;color:rgba(255,255,255,.4);letter-spacing:1px;">FEAR & GREED</div>
+          <div id="fg-label" style="font-family:var(--fm);font-size:9px;color:#ffff00;letter-spacing:1px;">LOADING...</div>
+        </div>
+      </div>
+      <!-- BTC Dom + MarketCap -->
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--b1);padding-top:6px;">
+        <div style="text-align:center;">
+          <div style="font-family:var(--fm);font-size:7px;color:rgba(255,255,255,.3);letter-spacing:1px;">BTC DOM</div>
+          <div id="btc-dom" style="font-family:var(--fm);font-size:10px;color:var(--acid);">–%</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:var(--fm);font-size:7px;color:rgba(255,255,255,.3);letter-spacing:1px;">MARKET CAP</div>
+          <div id="mkt-cap" style="font-family:var(--fm);font-size:10px;color:var(--ice);">–</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ◈ LIVE SIGNAL FEED -->
+    <div class="card" style="padding:10px 12px;flex:0 0 auto;">
+      <div style="font-family:var(--fm);font-size:7px;color:var(--ice);letter-spacing:2px;margin-bottom:8px;">◈ LIVE FEED</div>
+      <div id="signal-feed" style="display:flex;flex-direction:column;gap:4px;">
+        <div style="font-family:var(--fm);font-size:9px;color:rgba(255,255,255,.3);">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- ◈ МОЯ РЕФЕРАЛЬНАЯ ССЫЛКА -->
+    <div class="card" id="ref-block" style="padding:10px 12px;display:none;">
+      <div style="font-family:var(--fm);font-size:7px;color:var(--ice);letter-spacing:2px;margin-bottom:6px;">◈ МОЯ ССЫЛКА</div>
+      <div style="font-family:var(--fm);font-size:8px;color:rgba(255,255,255,.4);margin-bottom:4px;">Приглашай друзей → получай бонусы</div>
+      <div style="display:flex;gap:4px;">
+        <input id="ref-url" readonly style="
+          flex:1;height:24px;background:rgba(255,255,255,.04);
+          border:1px solid var(--b1);color:var(--acid);
+          font-family:var(--fm);font-size:8px;padding:0 6px;
+        ">
+        <button onclick="copyRef()" style="
+          height:24px;padding:0 8px;background:rgba(184,255,0,.1);
+          border:1px solid rgba(184,255,0,.3);color:var(--acid);
+          font-family:var(--fm);font-size:8px;cursor:pointer;letter-spacing:1px;
+        ">COPY</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CENTER: CHART -->
+  <main class="cm">
+    <div class="card chart-wrap h-full">
+      <div class="crnr tl"></div><div class="crnr tr"></div>
+      <div class="crnr bl"></div><div class="crnr br"></div>
+      <div id="tradingview_widget"></div>
+    </div>
+  </main>
+
+  <!-- RIGHT: RISK + CHAT -->
+  <aside class="cr">
+
+    <!-- Risk Calculator -->
+    <div class="card">
+      <div class="ch">
+        <div class="ch-l">
+          <div class="ch-icon" style="background:var(--ice-s);border-color:var(--bi);">
+            <span style="color:var(--ice)">⊕</span>
+          </div>
+          <span class="ch-title">{{ L.risk_processor }}</span>
+        </div>
+        <span class="badge b-ice">CALC</span>
+      </div>
+      <div class="rw">
+        <div class="ip-row">
+          <div class="ip"><label>LEVERAGE ×</label><input type="number" id="lev" value="30"></div>
+          <div class="ip"><label>MARGIN ($)</label><input type="number" id="marg" value="150"></div>
+          <div class="ip">
+            <label>ТАЙМФРЕЙМ</label>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button onclick="setTF('15m',this)" class="tf-btn tf-active">15М</button>
+              <button onclick="setTF('1h',this)"  class="tf-btn">1Ч</button>
+              <button onclick="setTF('4h',this)"  class="tf-btn">4Ч</button>
+              <button onclick="setTF('1d',this)"  class="tf-btn">1Д</button>
+            </div>
+          </div>
+        </div>
+        <div class="pos-box">
+          <span class="pos-lbl">POSITION SIZE</span>
+          <span id="pos-size">$4500.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Chat -->
+    <div class="card" style="flex:1;overflow:hidden;min-height:0;">
+      <div class="ch">
+        <div class="ch-l">
+          <div class="ch-icon" style="background:rgba(255,85,101,0.08);border-color:rgba(255,85,101,0.2);">
+            <span style="color:var(--coral)">⬡</span>
+          </div>
+          <span class="ch-title">{{ L.neural_log_title }}</span>
+        </div>
+        <span class="badge b-act" onclick="clearLog()">PURGE</span>
+      </div>
+      <div id="chat-box" class="chat-body"></div>
+      <div class="chat-foot">
+        <input id="chat-input" type="text" class="chat-inp" placeholder="{{ L.cmd_input_placeholder if L.cmd_input_placeholder else 'CMD_INPUT...' }}" onkeydown="if(event.key==='Enter')sendMsg()">
+        <button onclick="sendMsg()" class="btn-exec">EXEC</button>
+      </div>
+      <!-- Быстрые кнопки режимов -->
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button onclick="entryMarket('LONG')" class="btn-mode btn-long">
+          ▲ LONG МАРКЕТ
+        </button>
+        <button onclick="entryMarket('SHORT')" class="btn-mode btn-short">
+          ▼ SHORT МАРКЕТ
+        </button>
+        <button onclick="findOptimalEntry()" class="btn-mode btn-optimal">
+          ◈ ТОЧКА ВХОДА
+        </button>
+      </div>
+    </div>
+
+
+    <!-- Telegram привязка для Premium алертов -->
+    <div id="tg-link-block" style="margin-bottom:10px;display:none;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(240,244,255,.4);letter-spacing:1px;margin-bottom:6px;">
+        TELEGRAM ALERTS
+      </div>
+      <div id="tg-linked-status" style="display:none;font-size:10px;color:#b8ff00;margin-bottom:6px;">
+        ✓ Привязан
+      </div>
+      <div id="tg-input-row" style="display:flex;gap:6px;">
+        <input type="text" id="tg-chat-id" placeholder="Ваш Chat ID"
+               style="flex:1;height:28px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+                      color:#f0f4ff;font-family:'Share Tech Mono',monospace;font-size:10px;padding:0 8px;">
+        <button onclick="linkTelegram()"
+                style="height:28px;padding:0 10px;background:rgba(184,255,0,.1);border:1px solid rgba(184,255,0,.3);
+                       color:#b8ff00;font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;letter-spacing:1px;">
+          LINK
+        </button>
+      </div>
+      <div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:4px;line-height:1.4;">
+        Напиши <a href="https://t.me/userinfobot" target="_blank" style="color:rgba(184,255,0,.5);">@userinfobot</a>
+        чтобы узнать свой ID
+      </div>
+    </div>
+
+    <a href="{{ url_for('index') }}" class="btn-terminate">⏻ &nbsp;TERMINATE SESSION</a>
+  </aside>
+</div>
+
+<!-- ═══════════ BACKDROP ═══════════ -->
+<div class="ov-backdrop" id="ov-backdrop" onclick="closeAllOverlays()"></div>
+
+<!-- ═══════════ PORTFOLIO OVERLAY ═══════════ -->
+<div class="ov-panel ov-portfolio" id="ov-portfolio">
+  <div class="ov-head">
+    <div class="ov-title-group">
+      <div class="ov-icon" style="background:var(--ice-s);border:1px solid var(--bi);">◈</div>
+      <span class="ov-h1" style="color:var(--ice)">Portfolio</span>
+      <span class="badge b-ice" style="margin-left:4px;">LIVE</span>
+    </div>
+    <button class="ov-close" onclick="closeAllOverlays()">✕</button>
+  </div>
+  <div class="ov-body">
+    <div class="ov-scroll">
+      <div class="pf-summary">
+        <div class="pf-stat g" id="pf-balance-card" onclick="showSetBalance()" style="cursor:pointer;position:relative;" title="Click to set your balance">
+          <div class="pf-stat-label">TOTAL BALANCE <span style="color:var(--acid);font-size:7px;letter-spacing:1px;margin-left:4px;">✎ EDIT</span></div>
+          <div class="pf-stat-val" id="pf-balance-val" style="color:var(--mint)">$10,000.00</div>
+          <div class="pf-stat-sub" id="pf-balance-sub">⚙ Click to set your balance</div>
+          <!-- Inline edit input (скрыт по умолчанию) -->
+          <div id="pf-balance-edit" style="display:none;margin-top:8px;" onclick="event.stopPropagation()">
+            <input id="pf-balance-input" type="number" placeholder="10000"
+              style="width:100%;background:rgba(0,0,0,0.5);border:1px solid var(--acid);color:var(--acid);
+                     font-family:var(--fm);font-size:13px;padding:6px 10px;outline:none;letter-spacing:1px;"
+              onkeydown="if(event.key==='Enter') confirmBalance()"
+            >
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <button onclick="confirmBalance()"
+                style="flex:1;background:var(--acid);color:var(--void);border:none;font-family:var(--fm);
+                       font-size:9px;letter-spacing:2px;padding:6px;cursor:pointer;">✓ SET</button>
+              <button onclick="cancelBalance()"
+                style="flex:1;background:transparent;color:var(--t3);border:1px solid var(--b1);
+                       font-family:var(--fm);font-size:9px;letter-spacing:2px;padding:6px;cursor:pointer;">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="pf-stat e">
+          <div class="pf-stat-label">UNREALIZED PnL</div>
+          <div class="pf-stat-val" id="pf-upnl" style="color:var(--ember)">+$0.00</div>
+          <div class="pf-stat-sub">Across open positions</div>
+        </div>
+        <div class="pf-stat i">
+          <div class="pf-stat-label">MARGIN USED</div>
+          <div class="pf-stat-val" id="pf-margin-used" style="color:var(--ice)">$0.00</div>
+          <div class="pf-stat-sub" id="pf-margin-pct">0% of balance</div>
+        </div>
+      </div>
+      <div class="pf-section-title">Open Positions</div>
+      <div class="pf-row hdr">
+        <span>ASSET</span><span>DIR</span><span>SIZE</span><span>ENTRY</span>
+        <span>MARK</span><span>PnL</span><span>ROE%</span><span></span>
+      </div>
+      <div id="pf-positions-list"></div>
+      <div class="eq-chart-wrap">
+        <div class="eq-chart-label">EQUITY CURVE — 30 DAYS</div>
+        <div style="height:80px;"><canvas class="eq-cv" id="eq-canvas"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TRADE JOURNAL OVERLAY ═══════════ -->
+<div class="ov-panel ov-journal" id="ov-journal">
+  <div class="ov-head">
+    <div class="ov-title-group">
+      <div class="ov-icon" style="background:var(--ember-s);border:1px solid var(--be);">📒</div>
+      <span class="ov-h1" style="color:var(--ember)">Trade Journal</span>
+      <span class="badge b-live" style="margin-left:4px;" id="tj-count-badge">0 trades</span>
+    </div>
+    <button class="ov-close" onclick="closeAllOverlays()">✕</button>
+  </div>
+  <div class="tj-tabs">
+    <div class="tj-tab on" onclick="tjTab(this,'tj-log')">LOG</div>
+    <div class="tj-tab" onclick="tjTab(this,'tj-add')">+ NEW TRADE</div>
+    <div class="tj-tab" onclick="tjTab(this,'tj-stats')">ANALYTICS</div>
+  </div>
+  <div class="ov-body">
+    <div class="ov-scroll">
+
+      <!-- LOG -->
+      <div class="tj-pane on" id="tj-log">
+        <div class="tj-row hdr"><span>DATE</span><span>ASSET</span><span>DIR</span><span>LEV×</span><span>ENTRY</span><span>EXIT</span><span>SIZE</span><span>PnL</span><span>NOTE</span></div>
+        <div id="tj-rows"><div style="font-family:var(--fm);font-size:11px;color:var(--t4);text-align:center;padding:32px 0;">No trades logged yet</div></div>
+      </div>
+
+      <!-- ADD TRADE -->
+      <div class="tj-pane" id="tj-add">
+        <div class="tj-add-form">
+          <div class="tj-form-grid">
+            <div class="tj-field"><label>Asset</label><input type="text" id="tj-asset" placeholder="BTC-USDT"></div>
+            <div class="tj-field"><label>Direction</label><select id="tj-dir"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></div>
+            <div class="tj-field"><label>Entry Price</label><input type="number" id="tj-entry" placeholder="0.00"></div>
+            <div class="tj-field"><label>Exit Price</label><input type="number" id="tj-exit" placeholder="0.00"></div>
+            <div class="tj-field"><label>Size (USDT)</label><input type="number" id="tj-size" placeholder="0.00"></div>
+            <div class="tj-field"><label>Leverage ×</label><input type="number" id="tj-lev" placeholder="1" value="1"></div>
+            <div class="tj-field"><label>Date</label><input type="date" id="tj-date"></div>
+            <div class="tj-field"><label>Result</label><select id="tj-result"><option value="WIN">WIN ✓</option><option value="LOSS">LOSS ✗</option><option value="BE">BREAK-EVEN</option></select></div>
+          </div>
+          <textarea class="tj-note-input" id="tj-note" rows="2" placeholder="Trade notes, reasoning, emotions…"></textarea>
+          <button class="tj-add-btn" onclick="addTrade()">⊕ LOG TRADE</button>
+        </div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div class="tj-pane" id="tj-stats">
+        <div class="tj-stats">
+          <div class="tj-sc"><div class="tj-sc-lbl">TOTAL TRADES</div><div class="tj-sc-val" id="stat-total" style="color:var(--t1)">0</div></div>
+          <div class="tj-sc"><div class="tj-sc-lbl">TOTAL PnL</div><div class="tj-sc-val" id="stat-pnl" style="color:var(--mint)">$0.00</div></div>
+          <div class="tj-sc"><div class="tj-sc-lbl">AVG WIN</div><div class="tj-sc-val" id="stat-avgwin" style="color:var(--mint)">$0.00</div></div>
+          <div class="tj-sc"><div class="tj-sc-lbl">AVG LOSS</div><div class="tj-sc-val" id="stat-avgloss" style="color:var(--coral)">$0.00</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:20px;">
+          <div style="flex:0 0 auto;text-align:center;">
+            <div class="tj-sc-lbl" style="margin-bottom:8px;">WIN RATE</div>
+            <div class="wr-ring">
+              <svg width="90" height="90" viewBox="0 0 90 90">
+                <circle cx="45" cy="45" r="38" fill="none" stroke="var(--b1)" stroke-width="7"/>
+                <circle cx="45" cy="45" r="38" fill="none" stroke="var(--mint)" stroke-width="7" stroke-linecap="round" stroke-dasharray="238.76" id="wr-arc" stroke-dashoffset="238.76"/>
+              </svg>
+              <div class="wr-ring-val" id="wr-pct">0%</div>
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div class="eq-chart-wrap">
+              <div class="eq-chart-label">CUMULATIVE PnL CURVE</div>
+              <div style="height:100px;"><canvas class="eq-cv" id="pnl-canvas"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCRIPTS ═══════════ -->
+<script>
+// @ts-nocheck
+/* jshint ignore:start */
+/* eslint-disable */
+/* ─────────────────────────────────────
+   ДАННЫЕ ИЗ PYTHON (Jinja2)
+   ───────────────────────────────────── */
+const topAssets = {{ top_assets | tojson | safe }};
+let currentAsset = topAssets.length > 0 ? topAssets[0].symbol : "SOL-USDT";
+
+/* ─────────────────────────────────────
+   ИНИЦИАЛИЗАЦИЯ ГРАФИКА TRADINGVIEW
+   ───────────────────────────────────── */
+function initChart(symbol) {
+    document.getElementById('tradingview_widget').innerHTML = '';
+    const tvSymbol = "MEXC:" + symbol.replace('-', '');
+    new TradingView.widget({
+        "autosize": true,
+        "symbol": tvSymbol,
+        "interval": "15",
+        "timezone": "exchange",
+        "theme": "dark",
+        "style": "1",
+        "locale": "{{ current_lang | lower }}",
+        "enable_publishing": false,
+        "backgroundColor": "#070a10",
+        "gridColor": "rgba(52,216,240,0.04)",
+        "hide_top_toolbar": false,
+        "hide_legend": false,
+        "save_image": false,
+        "container_id": "tradingview_widget",
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "studies": [
+            "Volume@tv-basicstudies",
+            "RSI@tv-basicstudies",
+            "MACD@tv-basicstudies",
+            "BB@tv-basicstudies"
+        ]
+    });
+}
+
+/* ─────────────────────────────────────
+   ОТРИСОВКА WATCHLIST
+   ───────────────────────────────────── */
+function renderWatchlist(livePrices) {
+    const container = document.getElementById('watchlist-container');
+    if (!container) return;
+    const existing = container.querySelectorAll('.cr-row');
+
+    topAssets.forEach((asset, index) => {
+        const liveData = livePrices ? livePrices[asset.symbol] : null;
+        const change   = liveData   ? (liveData.change_24h || 0) : parseFloat(asset.change) || 0;
+        const price    = liveData   ? liveData.price : null;
+        const isPos    = change >= 0;
+        const changeStr = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+
+        // Обновляем если уже отрисован
+        if (existing[index]) {
+            const chgEl = existing[index].querySelector('.cr-chg');
+            const priceEl = existing[index].querySelector('.cr-price');
+            if (chgEl) { chgEl.textContent = changeStr; chgEl.className = `cr-chg ${isPos?'up':'dn'}`; }
+            if (priceEl && price) priceEl.textContent = price > 100 ? '$'+price.toLocaleString('en',{maximumFractionDigits:2}) : '$'+price.toFixed(4);
+            return;
+        }
+
+        const div = document.createElement('div');
+        div.className = 'cr-row' + (asset.symbol === currentAsset ? ' on' : '');
+        div.innerHTML = `
+            <span class="cr-num">${String(index + 1).padStart(2, '0')}</span>
+            <span class="cr-sym">${asset.symbol.replace('-USDT','')}</span>
+            <span class="cr-chg ${isPos ? 'up' : 'dn'}">${changeStr}</span>
+            ${price ? `<span class="cr-price" style="font-family:var(--fm);font-size:9px;color:var(--t3);margin-left:auto;">${price > 100 ? '$'+price.toLocaleString('en',{maximumFractionDigits:2}) : '$'+price.toFixed(4)}</span>` : ''}
+        `;
+        div.onclick = () => {
+            document.querySelectorAll('.cr-row').forEach(el => el.classList.remove('on'));
+            div.classList.add('on');
+            currentAsset = asset.symbol;
+            initChart(asset.symbol);
+        };
+        container.appendChild(div);
+    });
+}
+
+// Live-обновление цен в watchlist
+async function updateWatchlistPrices() {
+    try {
+        const syms = topAssets.slice(0, 20).map(a => a.symbol).join(',');
+        const r = await fetch('/api/prices?symbols=' + syms);
+        if (!r.ok) return;
+        const data = await r.json();
+        renderWatchlist(data);
+    } catch(e) {}
+}
+
+/* ─────────────────────────────────────
+   ЛОГИКА ЧАТА И НЕЙРОСЕТИ
+   ───────────────────────────────────── */
+// ── Режим "Войти по маркету" (LONG или SHORT прямо сейчас) ───────────────────
+async function entryMarket(direction) {
+    const box = document.getElementById('chat-box');
+    const lev  = document.getElementById('lev').value || 20;
+    const marg = document.getElementById('marg').value || 100;
+
+    box.innerHTML += `<div class="msg msg-u">▶ ВХОД ПО МАРКЕТУ: ${direction}</div>`;
+    box.innerHTML += `<div class="msg msg-a" id="entry-loading"><span class="msg-a-tag">◈ QUANTUM CORE</span><span style="color:var(--ice);animation:pulse 1s infinite">⟳ СКАНИРОВАНИЕ РЫНКА...</span></div>`;
+    box.scrollTop = box.scrollHeight;
+
+    try {
+        const res = await fetch('/api/entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asset:     currentAsset,
+                leverage:  parseInt(lev),
+                margin:    parseFloat(marg),
+                direction: direction
+            })
+        });
+        const data = await res.json();
+        document.getElementById('entry-loading')?.remove();
+
+        if (data.error) {
+            box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">⚠ ${data.error || data.msg}</span></div>`;
+            box.scrollTop = box.scrollHeight;
+            return;
+        }
+
+        let aiResponse = data.answer || '';
+        let riskHtml   = '';
+        if (data.raw_signal) {
+            const s = data.raw_signal;
+            const tp1Pct  = s.tp1_pct  || 0;
+            const tp2Pct  = s.tp2_pct  || 0;
+            const slPct   = s.sl_pct   || 0;
+            const rrRatio = s.rr_ratio || '1:2.5';
+            const entry   = parseFloat(s.entry) || 1;
+            const pSize   = parseInt(lev) * parseFloat(marg);
+            const coins   = pSize / entry;
+            const dir     = s.direction;
+            const prof1   = Math.abs(coins * (parseFloat(s.tp1) - entry) * (dir==='LONG'?1:-1));
+            const prof2   = Math.abs(coins * (parseFloat(s.tp2) - entry) * (dir==='LONG'?1:-1));
+            const loss    = Math.abs(coins * (parseFloat(s.sl)  - entry) * (dir==='LONG'?-1:1));
+            riskHtml = `
+                <div class="rc-block">
+                    <div class="rc-tag">MARKET ENTRY · RR ${rrRatio}</div>
+                    <div class="rc-row"><span>ТЕКУЩАЯ ЦЕНА</span><span style="color:#00e5ff">${data.price || s.entry}</span></div>
+                    <div class="rc-row"><span>TP1 PROFIT</span><span class="uv">+$${prof1.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp1Pct}%)</span></span></div>
+                    <div class="rc-row"><span>TP2 PROFIT</span><span class="uv" style="color:#b8ff00">+$${prof2.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp2Pct}%)</span></span></div>
+                    <div class="rc-row"><span>EST. LOSS</span><span class="dv">−$${loss.toFixed(2)} <span style="font-size:10px;opacity:.7">(-${slPct}%)</span></span></div>
+                </div>`;
+        }
+
+        let formatted = (aiResponse)
+            .replace(/ВХОД В ПОЗИЦИЮ:/g,    '<br><b style="color:var(--acid)">ВХОД В ПОЗИЦИЮ:</b>')
+            .replace(/ТОЧКА ВХОДА:/g,        '<br><b style="color:var(--ice)">ТОЧКА ВХОДА:</b>')
+            .replace(/ТЕЙК-ПРОФИТ/g,         '<br><b style="color:#00ffcc">ТЕЙК-ПРОФИТ</b>')
+            .replace(/СТОП-ЛОСС:/g,          '<br><b style="color:#ff4466">СТОП-ЛОСС:</b>')
+            .replace(/УРОВЕНЬ ДОВЕРИЯ:/g,    '<br><b style="color:#ffcc00">УРОВЕНЬ ДОВЕРИЯ:</b>')
+            .replace(/полная аналитика:/gi,  '<br><b style="color:var(--ice)">◈ АНАЛИТИКА:</b><br>');
+
+        const disclaimer = `<div style="margin-top:12px;padding:14px 18px;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.25);font-family:'Share Tech Mono',monospace;font-size:12px;color:rgba(255,200,0,0.95);font-weight:600;">⚠️ НЕ ФИНАНСОВЫЙ СОВЕТ. Торгуйте осознанно.</div>`;
+
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ MARKET ENTRY · ${direction}</span>${riskHtml}${formatted}${disclaimer}</div>`;
+    } catch(e) {
+        document.getElementById('entry-loading')?.remove();
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">❌ UPLINK FAILURE: ${e.message}</span></div>`;
+    }
+    box.scrollTop = box.scrollHeight;
+}
+
+
+// ── Режим "Найди оптимальную точку входа" ────────────────────────────────────
+async function findOptimalEntry() {
+    const box  = document.getElementById('chat-box');
+    const lev  = document.getElementById('lev').value  || 20;
+    const marg = document.getElementById('marg').value || 100;
+
+    box.innerHTML += `<div class="msg msg-u">◈ НАЙДИ ЛУЧШУЮ ТОЧКУ ВХОДА ДЛЯ ${currentAsset}</div>`;
+    box.innerHTML += `<div class="msg msg-a" id="optimal-loading"><span class="msg-a-tag">◈ QUANTUM CORE</span><span style="color:var(--ice);animation:pulse 1s infinite">⟳ ГЛУБОКИЙ АНАЛИЗ РЫНКА...</span></div>`;
+    box.scrollTop = box.scrollHeight;
+
+    try {
+        const res = await fetch('/api/optimal_entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asset:    currentAsset,
+                leverage: parseInt(lev),
+                margin:   parseFloat(marg)
+            })
+        });
+        const data = await res.json();
+        document.getElementById('optimal-loading')?.remove();
+
+        if (data.error) {
+            box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">⚠ ${data.error || data.msg}</span></div>`;
+            box.scrollTop = box.scrollHeight;
+            return;
+        }
+
+        let aiResponse = data.answer || '';
+        let formatted  = (aiResponse)
+            .replace(/ОПТИМАЛЬНАЯ ТОЧКА ВХОДА:/g, '<br><b style="color:#b8ff00;font-size:13px;">⭐ ОПТИМАЛЬНАЯ ТОЧКА ВХОДА:</b>')
+            .replace(/НАПРАВЛЕНИЕ:/g,             '<br><b style="color:var(--acid)">НАПРАВЛЕНИЕ:</b>')
+            .replace(/ПОЧЕМУ ИМЕННО ЭТА ЦЕНА:/g, '<br><b style="color:var(--ice)">ПОЧЕМУ:</b>')
+            .replace(/ТЕЙК-ПРОФИТ/g,              '<br><b style="color:#00ffcc">ТЕЙК-ПРОФИТ</b>')
+            .replace(/СТОП-ЛОСС:/g,               '<br><b style="color:#ff4466">СТОП-ЛОСС:</b>')
+            .replace(/УСЛОВИЕ ВХОДА:/g,           '<br><b style="color:#ffcc00">◈ УСЛОВИЕ ВХОДА:</b>')
+            .replace(/ОЖИДАЕМОЕ ВРЕМЯ:/g,         '<br><b style="color:var(--t2)">⏱ ОЖИДАЕМОЕ ВРЕМЯ:</b>')
+            .replace(/РИСК СЦЕНАРИЯ:/g,           '<br><b style="color:#ff8844">⚡ РИСК СЦЕНАРИЯ:</b>')
+            .replace(/полная аналитика:/gi,       '<br><b style="color:var(--ice)">◈ ПОЛНАЯ АНАЛИТИКА:</b><br>');
+
+        const infoBlock = `
+            <div style="margin-bottom:10px;padding:8px 12px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,229,255,0.6);">
+                    ТЕКУЩАЯ ЦЕНА ${currentAsset}: ${data.current_price || '—'}
+                </span>
+            </div>`;
+
+        const disclaimer = `<div style="margin-top:12px;padding:14px 18px;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.25);font-family:'Share Tech Mono',monospace;font-size:12px;color:rgba(255,200,0,0.95);font-weight:600;">⚠️ НЕ ФИНАНСОВЫЙ СОВЕТ. Торгуйте осознанно.</div>`;
+
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ OPTIMAL ENTRY ANALYSIS</span>${infoBlock}${formatted}${disclaimer}</div>`;
+    } catch(e) {
+        document.getElementById('optimal-loading')?.remove();
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">❌ UPLINK FAILURE: ${e.message}</span></div>`;
+    }
+    box.scrollTop = box.scrollHeight;
+}
+
+
+async function sendMsg() {
+    const input = document.getElementById('chat-input');
+    const box   = document.getElementById('chat-box');
+    const text  = input.value.trim();
+    if (!text) return;
+
+    box.innerHTML += `<div class="msg msg-u">${text}</div>`;
+    input.value = '';
+    box.scrollTop = box.scrollHeight;
+
+    try {
+        const res = await fetch('/ask_ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: text,
+                asset: currentAsset,
+                leverage: document.getElementById('lev').value,
+                margin:   document.getElementById('marg').value,
+                tf:       window._selectedTF || '15m' 
+            })
+        });
+        const data = await res.json();
+
+        // ── Лимит сигналов исчерпан ──────────────────────────────────────
+        if (data.limit_reached || res.status === 429) {
+            const used  = data.used  || 0;
+            const limit = data.limit || 0;
+            box.innerHTML += `
+              <div class="msg msg-a" style="padding:0;overflow:hidden;">
+                <div style="padding:14px 16px 10px;display:flex;align-items:center;gap:10px;">
+                  <span class="msg-a-tag">◈ SYSTEM</span>
+                </div>
+                <div style="background:rgba(255,179,0,0.06);border-top:1px solid rgba(255,179,0,0.15);border-bottom:1px solid rgba(255,179,0,0.15);padding:16px 16px 18px;">
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(255,179,0,0.6);letter-spacing:3px;margin-bottom:8px;">⛔ ДНЕВНОЙ ЛИМИТ ИСЧЕРПАН</div>
+                  <div style="font-size:14px;font-weight:700;color:#f0f4ff;margin-bottom:4px;">Использовано ${used} из ${limit} сигналов сегодня</div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(240,244,255,0.4);margin-bottom:16px;">Лимит сбрасывается каждый день в 00:00 UTC</div>
+                  <a href="/premium" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#ffb300,#ffcc40);color:#000;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:3px;padding:10px 24px;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.boxShadow='0 6px 24px rgba(255,179,0,0.4)'" onmouseout="this.style.boxShadow=''">
+                    ★ ПОЛУЧИТЬ PREMIUM &nbsp;·&nbsp; 15 СИГНАЛОВ/ДЕНЬ
+                  </a>
+                </div>
+              </div>`;
+            box.scrollTop = box.scrollHeight;
+            return;
+        }
+
+        let aiResponse = data.answer;
+        let riskHtml   = "";
+
+        if (data.raw_signal) {
+            const s = data.raw_signal;
+            let plainText  = aiResponse.replace(/<[^>]+>/g, '');
+            let matchEntry = plainText.match(/ТОЧКА ВХОДА:\s*([\d\.,]+)/i);
+            let matchTp    = plainText.match(/ТЕЙК-ПРОФИТ(?:\s*1)?:\s*([\d\.,]+)/i);
+            let matchTp2   = plainText.match(/ТЕЙК-ПРОФИТ\s*2:\s*([\d\.,]+)/i);
+            let matchSl    = plainText.match(/СТОП-ЛОСС:\s*([\d\.,]+)/i);
+            // Extract % from signal
+            let tp1Pct = s.tp1_pct || 0;
+            let tp2Pct = s.tp2_pct || 0;
+            let slPct  = s.sl_pct  || 0;
+            let rrRatio = s.rr_ratio || '1:2.5';
+
+            let calcEntry = matchEntry ? parseFloat(matchEntry[1].replace(',', '.')) : (parseFloat(s.entry) || 0.00000001);
+            let calcTp    = matchTp    ? parseFloat(matchTp[1].replace(',', '.'))    : parseFloat(s.tp1);
+            let calcSl    = matchSl    ? parseFloat(matchSl[1].replace(',', '.'))    : parseFloat(s.sl);
+
+            const pSizeUSDT = (parseFloat(document.getElementById('lev').value) || 0) * (parseFloat(document.getElementById('marg').value) || 0);
+            const coins     = pSizeUSDT / calcEntry;
+            let prof = s.direction === "LONG" ? coins * (calcTp - calcEntry) : coins * (calcEntry - calcTp);
+            let loss = s.direction === "LONG" ? coins * (calcEntry - calcSl) : coins * (calcSl - calcEntry);
+
+            let calcTp2 = matchTp2 ? parseFloat(matchTp2[1].replace(',','.')) : parseFloat(s.tp2);
+            let prof2 = s.direction === "LONG" ? coins * (calcTp2 - calcEntry) : coins * (calcEntry - calcTp2);
+
+            riskHtml = `
+                <div class="rc-block">
+                    <div class="rc-tag">RISK ASSESSMENT · RR ${rrRatio}</div>
+                    <div class="rc-row"><span>TP1 PROFIT</span><span class="uv">+$${Math.abs(prof).toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp1Pct}%)</span></span></div>
+                    <div class="rc-row"><span>TP2 PROFIT</span><span class="uv" style="color:#b8ff00">+$${Math.abs(prof2).toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp2Pct}%)</span></span></div>
+                    <div class="rc-row"><span>EST. LOSS</span><span class="dv">−$${Math.abs(loss).toFixed(2)} <span style="font-size:10px;opacity:.7">(-${slPct}%)</span></span></div>
+                </div>`;
+        }
+        // Форматируем текст: нумерованные пункты на новые строки
+        let formattedResponse = aiResponse
+            .replace(/([1-9][0-9]?)\)/g, '<br><br><b>$1)</b>')  // 1) 2) 3) → новая строка
+            .replace(/ВХОД В ПОЗИЦИЮ:/g, '<br><b style="color:var(--acid)">ВХОД В ПОЗИЦИЮ:</b>')
+            .replace(/ТОЧКА ВХОДА:/g, '<br><b style="color:var(--ice)">ТОЧКА ВХОДА:</b>')
+            .replace(/ТЕЙК-ПРОФИТ/g, '<br><b style="color:#00ffcc">ТЕЙК-ПРОФИТ</b>')
+            .replace(/СТОП-ЛОСС:/g, '<br><b style="color:#ff4466">СТОП-ЛОСС:</b>')
+            .replace(/УРОВЕНЬ ДОВЕРИЯ:/g, '<br><b style="color:#ffcc00">УРОВЕНЬ ДОВЕРИЯ:</b>')
+            .replace(/полная аналитика:/gi, '<br><b style="color:var(--ice);letter-spacing:1px;">◈ ПОЛНАЯ АНАЛИТИКА:</b><br>');
+
+        // Дисклеймер — жирный, заметный, отдельным блоком
+        const disclaimerHtml = `
+            <div style="
+                margin-top:14px;
+                padding:10px 14px;
+                background:rgba(255,200,0,0.08);
+                border:1px solid rgba(255,200,0,0.3);
+                border-radius:4px;
+                font-family:'Share Tech Mono',monospace;
+                font-size:10px;
+                color:rgba(255,200,0,0.9);
+                line-height:1.6;
+                letter-spacing:0.5px;
+            ">
+                ⚠️ <b>НЕ ЯВЛЯЕТСЯ ФИНАНСОВЫМ СОВЕТОМ</b><br>
+                Данный сигнал носит исключительно информационный характер и не является
+                инвестиционной рекомендацией или призывом к торговле.
+                Торговля криптовалютами сопряжена с высоким риском потери капитала.
+                Принимайте торговые решения самостоятельно.
+            </div>`;
+
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ AI RESPONSE</span>${riskHtml}${formattedResponse}${disclaimerHtml}</div>`;
+    } catch (e) {
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">❌ UPLINK_CRITICAL_FAILURE</span></div>`;
+    }
+    box.scrollTop = box.scrollHeight;
+}
+
+// ── MARKET CONTEXT: Fear & Greed + BTC Dom ────────────────────────────────────
+async function loadMarketContext() {
+  try {
+    const r = await fetch('/api/market/context');
+    const d = await r.json();
+    if (d.status !== 'ok') return;
+    const gauge = document.getElementById('fg-gauge');
+    const label = document.getElementById('fg-label');
+    const dom   = document.getElementById('btc-dom');
+    const cap   = document.getElementById('mkt-cap');
+    if (gauge) { gauge.textContent = d.fear_greed; gauge.style.color = d.fg_color; gauge.style.borderColor = d.fg_color + '66'; }
+    if (label) { label.textContent = d.fg_label; label.style.color = d.fg_color; }
+    if (dom)   dom.textContent = d.btc_dominance + '%';
+    if (cap)   cap.textContent = d.market_cap;
+  } catch(e) {}
+}
+
+// ── LIVE SIGNAL FEED ───────────────────────────────────────────────────────────
+async function loadSignalFeed() {
+  try {
+    const r = await fetch('/api/signals/feed');
+    const d = await r.json();
+    const box = document.getElementById('signal-feed');
+    if (!box) return;
+    const feed = d.feed || d.signals || [];
+    if (!feed.length) { box.innerHTML = '<div style="font-family:var(--fm);font-size:9px;color:rgba(255,255,255,.3);">Сигналов пока нет</div>'; return; }
+    box.innerHTML = feed.map(s => {
+      const isLong = (s.direction || s.dir || 'LONG').toUpperCase() === 'LONG';
+      const col    = isLong ? 'var(--ice)' : '#ff4466';
+      const ago    = s.time ? timeAgoShort(s.time) : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+        <span style="font-family:var(--fm);font-size:9px;color:rgba(255,255,255,.7);">${s.asset.replace('-USDT','')}</span>
+        <span style="font-family:var(--fm);font-size:8px;color:${col};letter-spacing:1px;">${s.direction}</span>
+        <span style="font-family:var(--fm);font-size:8px;color:rgba(255,255,255,.3);">${ago}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function timeAgoShort(ts) {
+  try {
+    const diff = Date.now() - new Date(ts).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1)  return 'сейчас';
+    if (m < 60) return m + 'м';
+    return Math.floor(m/60) + 'ч';
+  } catch(e) { return ''; }
+}
+
+// ── РЕФЕРАЛЬНАЯ ССЫЛКА ─────────────────────────────────────────────────────────
+async function loadRefLink() {
+  try {
+    const r = await fetch('/api/referral/code');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.url) {
+      document.getElementById('ref-block').style.display = 'block';
+      document.getElementById('ref-url').value = d.url;
+    }
+  } catch(e) {}
+}
+
+function copyRef() {
+  const el = document.getElementById('ref-url');
+  if (!el) return;
+  navigator.clipboard.writeText(el.value).then(() => {
+    const btn = el.nextElementSibling;
+    if (btn) { btn.textContent = '✓ COPIED'; setTimeout(() => btn.textContent = 'COPY', 2000); }
+  });
+}
+
+// ── Запуск всех виджетов ───────────────────────────────────────────────────────
+loadMarketContext();
+loadSignalFeed();
+loadRefLink();
+setInterval(loadMarketContext, 5 * 60 * 1000);   // каждые 5 минут
+setInterval(loadSignalFeed,   60 * 1000);         // каждую минуту
+
+// ── HEARTBEAT — онлайн трекинг ────────────────────────────────────────────────
+(function startHeartbeat() {
+    async function ping() {
+        try { await fetch('/api/heartbeat', {method:'POST'}); } catch(e) {}
+    }
+    ping(); // сразу при загрузке
+    setInterval(ping, 30000); // каждые 30 секунд
+})();
+
+// ── TELEGRAM LINK ──────────────────────────────────────────────────────────────
+async function checkTelegramStatus() {
+  try {
+    const isPrem = document.body.dataset.premium === '1';
+    if (!isPrem) return;
+    document.getElementById('tg-link-block').style.display = 'block';
+    const r = await fetch('/api/telegram/status');
+    const d = await r.json();
+    if (d.linked) {
+      document.getElementById('tg-linked-status').style.display = 'block';
+      document.getElementById('tg-input-row').style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function linkTelegram() {
+  const chatId = document.getElementById('tg-chat-id').value.trim();
+  if (!chatId) { alert('Введите Chat ID'); return; }
+  try {
+    const r = await fetch('/api/telegram/link', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id: chatId})
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      document.getElementById('tg-linked-status').style.display = 'block';
+      document.getElementById('tg-input-row').style.display = 'none';
+    } else {
+      alert(d.error || 'Ошибка');
+    }
+  } catch(e) { alert('Ошибка сети'); }
+}
+
+// Запуск проверки при загрузке
+setTimeout(checkTelegramStatus, 1500);
+
+function setTF(tf, btn) {
+    window._selectedTF = tf;
+    document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('tf-active'));
+    btn.classList.add('tf-active');
+}
+window._selectedTF = '15m';
+
+function clearLog() { document.getElementById('chat-box').innerHTML = ''; }
+
+// ── Счётчик сигналов ──────────────────────────────────────────────────────────
+async function loadSignalCounter() {
+    try {
+        const [subRes, usageRes] = await Promise.all([
+            fetch('/api/subscription/status'),
+            fetch('/api/signals/daily_usage')
+        ]);
+        const sub   = subRes.ok   ? await subRes.json()   : {};
+        const usage = usageRes.ok ? await usageRes.json() : {};
+
+        const used    = usage.used  ?? 0;
+        const limit   = usage.limit ?? 2;
+        const isPrem  = sub.is_premium || usage.is_premium || false;
+
+        const el      = document.getElementById('signal-counter');
+        const usedEl  = document.getElementById('sc-used');
+        const limitEl = document.getElementById('sc-limit');
+        const labelEl = document.getElementById('sc-label');
+
+        if (!el) return;
+        el.style.display = 'flex';
+
+        if (usedEl)  usedEl.textContent  = used;
+        if (limitEl) limitEl.textContent = limit;
+
+        // Цвет в зависимости от остатка
+        const remaining = limit - used;
+        if (usedEl) {
+            usedEl.style.color = remaining <= 0 ? 'var(--coral)'
+                               : remaining === 1 ? '#ffcc00'
+                               : 'var(--ember)';
+        }
+
+        if (isPrem && labelEl) {
+            labelEl.innerHTML = '<span style="color:#b8ff00;letter-spacing:1px;">★ PREMIUM</span>';
+        } else if (remaining <= 0 && labelEl) {
+            labelEl.innerHTML = `<a href="/premium" style="color:#b8ff00;text-decoration:none;letter-spacing:1px;border:1px solid rgba(184,255,0,0.3);padding:1px 5px;font-size:8px;">↑ UP</a>`;
+        }
+    } catch(e) {}
+}
+loadSignalCounter();
+setInterval(loadSignalCounter, 60000); // обновляем каждую минуту
+
+
+/* ─────────────────────────────────────
+   МАТРИЦА
+   ───────────────────────────────────── */
+function initMatrix() {
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx    = canvas.getContext('2d');
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const cols  = Math.floor(canvas.width / 22);
+    const drops = Array(cols).fill(1);
+    const chars = '01アウエオサシスセタチ∑∆∇∫≈◈⊕';
+    (function draw() {
+        ctx.fillStyle = 'rgba(7,10,16,0.13)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drops.forEach((y, i) => {
+            const bright = Math.random() > 0.93;
+            ctx.fillStyle = bright
+                ? `rgba(232,159,28,${0.55 + Math.random() * 0.45})`
+                : (Math.random() > 0.6
+                    ? `rgba(52,216,240,${0.12 + Math.random() * 0.2})`
+                    : `rgba(232,159,28,${0.06 + Math.random() * 0.1})`);
+            ctx.font = `${bright ? 'bold ' : ''}${bright ? 14 : 12}px DM Mono,monospace`;
+            ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * 22, y * 22);
+            if (y * 22 > canvas.height && Math.random() > 0.976) drops[i] = 0;
+            else drops[i]++;
+        });
+        setTimeout(draw, 62);
+    })();
+}
+
+/* ─────────────────────────────────────
+   3D СФЕРА (Three.js)
+   ───────────────────────────────────── */
+function initThree() {
+    const container = document.getElementById('neuro-sphere');
+    const scene     = new THREE.Scene();
+    const camera    = new THREE.PerspectiveCamera(58, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer  = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const core = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.5, 2),
+        new THREE.MeshBasicMaterial({ color: 0xe89f1c, wireframe: true, transparent: true, opacity: 0.55 })
+    );
+    const shell = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.78, 1),
+        new THREE.MeshBasicMaterial({ color: 0x34d8f0, wireframe: true, transparent: true, opacity: 0.17 })
+    );
+    scene.add(core); scene.add(shell);
+
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(180 * 3);
+    for (let i = 0; i < pos.length; i++) pos[i] = (Math.random() - 0.5) * 1.8;
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x34d8f0, size: 0.015, transparent: true, opacity: 0.6 })));
+
+    camera.position.z = 1.9;
+    (function animate() {
+        requestAnimationFrame(animate);
+        core.rotation.x  += 0.005; core.rotation.y  += 0.009;
+        shell.rotation.x -= 0.003; shell.rotation.y -= 0.005;
+        renderer.render(scene, camera);
+    })();
+}
+
+/* ─────────────────────────────────────
+   УТИЛИТЫ
+   ───────────────────────────────────── */
+function updateClock() {
+    const now = new Date();
+    document.getElementById('hud-clock').textContent =
+        now.toLocaleTimeString('en-GB') + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    requestAnimationFrame(updateClock);
+}
+
+function updatePosSize() {
+    const lev  = parseFloat(document.getElementById('lev').value)  || 0;
+    const marg = parseFloat(document.getElementById('marg').value) || 0;
+    document.getElementById('pos-size').textContent = '$' + (lev * marg).toFixed(2);
+}
+
+document.getElementById('lev').addEventListener('input', updatePosSize);
+document.getElementById('marg').addEventListener('input', updatePosSize);
+document.getElementById('chat-input').addEventListener('keypress', e => { if (e.key === 'Enter') sendMsg(); });
+
+/* ─────────────────────────────────────
+   OVERLAYS
+   ───────────────────────────────────── */
+function openOverlay(id) {
+    closeAllOverlays();
+    document.getElementById('ov-backdrop').classList.add('show');
+    const _el = document.getElementById('ov-' + id);
+    if (_el) { _el.classList.add('show'); _el.style.display = 'flex'; }
+    if (id === 'portfolio') loadPortfolio();
+    if (id === 'journal')   loadPortfolio();
+    if (id === 'profile')   loadProfile();
+}
+function closeAllOverlays() {
+    document.getElementById('ov-backdrop').classList.remove('show');
+    document.querySelectorAll('.ov-panel').forEach(p => p.classList.remove('show'));
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllOverlays(); });
+
+function tjTab(el, paneId) {
+    document.querySelectorAll('.tj-tab').forEach(t => t.classList.remove('on'));
+    document.querySelectorAll('.tj-pane').forEach(p => p.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById(paneId).classList.add('on');
+    if (paneId === 'tj-stats') renderJournalStats();
+}
+
+/* ─────────────────────────────────────
+   TRADE JOURNAL + PORTFOLIO (API-backed)
+   ───────────────────────────────────── */
+let trades    = [];
+let portfolio = { balance: 10000, initial_bal: 10000, unrealized_pnl: 0, margin_used: 0, positions: [], equity_curve: [] };
+
+// ── Загрузка данных с сервера ──────────────────────────────
+async function loadPortfolio() {
+    try {
+        const r = await fetch('/api/portfolio');
+        if (!r.ok) {
+            if (r.status === 503) {
+                console.warn('Portfolio not available');
+            }
+            return;
+        }
+        const d = await r.json();
+        if (d.error) { console.warn('Portfolio error:', d.error); return; }
+        portfolio = d;
+        // Объединяем открытые и закрытые сделки для журнала
+        const open   = (d.positions     || []).map(t => ({...t, status:'OPEN'}));
+        const closed = (d.closed_trades || []).map(t => ({...t, status:'CLOSED'}));
+        trades = [...open, ...closed];
+        // Сортируем по дате открытия (новые сначала)
+        trades.sort((a,b) => new Date(b.opened_at||b.date||0) - new Date(a.opened_at||a.date||0));
+        renderPortfolio();
+        renderJournalLog();
+        renderJournalStats();
+        updateTjBadge();
+    } catch(e) { console.warn('Portfolio load:', e); }
+}
+
+function saveTrades() { /* данные хранятся на сервере */ }
+
+function calcPnL(t) {
+    // Используем сохранённый PnL с сервера если есть
+    if (t.pnl !== undefined && t.pnl !== null && t.pnl !== 0) return t.pnl;
+    const entry = t.entry || 0;
+    const exit  = t.exit_price || t.exit || 0;
+    const size  = t.size  || 0;
+    const lev   = t.leverage || 1;
+    const dir   = (t.direction || t.dir || 'LONG') === 'LONG' ? 1 : -1;
+    if (!entry || !exit || !size) return 0;
+    return dir * ((size * lev) / entry) * (exit - entry);
+}
+
+async function addTrade() {
+    const asset = document.getElementById('tj-asset').value.trim();
+    const entry = parseFloat(document.getElementById('tj-entry').value);
+    const size  = parseFloat(document.getElementById('tj-size').value);
+    if (!asset || !entry || !size) {
+        document.getElementById('tj-asset').style.borderColor = 'var(--coral)'; return;
+    }
+    const btn = document.querySelector('.tj-add-btn');
+    btn.textContent = '⏳ SAVING...'; btn.disabled = true;
+    try {
+        const exit_val = parseFloat(document.getElementById('tj-exit').value) || 0;
+        const payload = {
+            asset, entry, size,
+            exit_price: exit_val,
+            leverage:   parseFloat(document.getElementById('tj-lev').value) || 1,
+            direction:  document.getElementById('tj-dir').value,
+            note:       document.getElementById('tj-note').value.trim(),
+            tp1: 0, tp2: 0, sl: 0
+        };
+        // Если выход указан — сразу закрытая сделка (ручная запись)
+        if (exit_val > 0) {
+            // Открываем и сразу закрываем
+            const r1 = await fetch('/api/trades/open', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+            const d1 = await r1.json();
+            if (d1.trade_id) {
+                await fetch('/api/trades/close/' + d1.trade_id, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({exit_price: exit_val}) });
+            }
+        } else {
+            await fetch('/api/trades/open', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        }
+        ['tj-asset','tj-entry','tj-exit','tj-size','tj-note'].forEach(id => {
+            const el = document.getElementById(id); if (el) { el.value = ''; el.style.borderColor = ''; }
+        });
+        document.getElementById('tj-lev').value = '1';
+        btn.textContent = '✓ LOGGED'; btn.style.background = 'var(--mint)';
+        setTimeout(() => { btn.textContent = '⊕ LOG TRADE'; btn.style.background = ''; btn.disabled = false; }, 1800);
+        await loadPortfolio();
+    } catch(e) {
+        btn.textContent = '✗ ERROR'; btn.style.background = 'var(--coral)';
+        setTimeout(() => { btn.textContent = '⊕ LOG TRADE'; btn.style.background = ''; btn.disabled = false; }, 2000);
+    }
+}
+
+function renderJournalLog() {
+    const c = document.getElementById('tj-rows'); if (!c) return;
+    if (!trades.length) {
+        c.innerHTML = `<div style="font-family:var(--fm);font-size:11px;color:var(--t4);text-align:center;padding:32px 0;line-height:2;">
+            No trades logged yet<br>
+            <span style="font-size:10px;color:rgba(255,255,255,0.2);">Сигналы AI автоматически сохраняются сюда.<br>Или добавь вручную во вкладке + NEW TRADE</span>
+        </div>`; return;
+    }
+    c.innerHTML = trades.map(t => {
+        const pnl = calcPnL(t);
+        const dir = (t.direction && t.direction !== 'undefined') ? t.direction
+                  : (t.dir && t.dir !== 'undefined') ? t.dir : '?';
+        const dateStr = (t.opened_at || t.date || '').slice(0,10) || '—';
+        const exitVal = t.exit_price || t.exit || 0;
+        const lev     = t.leverage || 1;
+        const note    = t.note || '';
+        const status = t.status || 'CLOSED';
+        // Значок результата: WIN/LOSS/BE/OPEN
+        let resultBadge = '';
+        if (status === 'OPEN') {
+            const upnlVal = t.upnl || 0;
+            resultBadge = `<span style="color:var(--ice);font-size:9px;padding:1px 5px;border:1px solid var(--ice);opacity:.8;">OPEN${upnlVal !== 0 ? ' '+(upnlVal>=0?'+':'')+upnlVal.toFixed(2) : ''}</span>`;
+        } else if (t.result === 'WIN') {
+            resultBadge = `<span style="color:var(--mint);font-size:9px;padding:1px 5px;border:1px solid var(--mint);opacity:.9;">✓ WIN</span>`;
+        } else if (t.result === 'LOSS') {
+            resultBadge = `<span style="color:var(--coral);font-size:9px;padding:1px 5px;border:1px solid var(--coral);opacity:.9;">✗ LOSS</span>`;
+        } else if (t.result === 'BE') {
+            resultBadge = `<span style="color:#ffcc00;font-size:9px;padding:1px 5px;border:1px solid #ffcc00;opacity:.9;">= BE</span>`;
+        }
+        const pnlStr = status === 'OPEN'
+            ? resultBadge
+            : `${resultBadge} <span class="${pnl >= 0 ? 'uv' : 'dv'}">${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}</span>`;
+        return `<div class="tj-row" style="${status==='OPEN' ? 'border-left:2px solid var(--ice);' : pnl>0 ? 'border-left:2px solid var(--mint);' : pnl<0 ? 'border-left:2px solid var(--coral);' : ''}">
+            <span style="color:var(--t3);font-size:10px;">${dateStr}</span>
+            <span style="font-weight:600">${t.asset}</span>
+            <span class="${dir === 'LONG' ? 'tj-long' : 'tj-short'}">${dir}</span>
+            <span style="color:var(--amber,#e89f1c);font-weight:600">${lev}×</span>
+            <span>$${(+t.entry).toFixed(4)}</span>
+            <span>${exitVal ? '$' + (+exitVal).toFixed(4) : '—'}</span>
+            <span>$${(+t.size).toFixed(0)}</span>
+            ${pnlStr}
+            <span class="tj-note" title="${note}">${note || '—'}</span>
+        </div>`;
+    }).join('');
+}
+
+function renderJournalStats() {
+    const pnls    = trades.map(calcPnL);
+    const total   = trades.length;
+    const wins    = trades.filter(t => t.result === 'WIN').length;
+    const totalPnl= pnls.reduce((s,v) => s+v, 0);
+    const wPnls   = pnls.filter(v => v > 0), lPnls = pnls.filter(v => v < 0);
+    const avgWin  = wPnls.length ? wPnls.reduce((s,v)=>s+v,0)/wPnls.length : 0;
+    const avgLoss = lPnls.length ? lPnls.reduce((s,v)=>s+v,0)/lPnls.length : 0;
+    const wr      = total ? Math.round(wins / total * 100) : 0;
+
+    const g = id => document.getElementById(id);
+    if (g('stat-total')) g('stat-total').textContent = total;
+    if (g('stat-pnl'))   { g('stat-pnl').textContent = (totalPnl>=0?'+':'')+'$'+Math.abs(totalPnl).toFixed(2); g('stat-pnl').style.color = totalPnl>=0?'var(--mint)':'var(--coral)'; }
+    if (g('stat-avgwin'))  g('stat-avgwin').textContent  = '+$' + Math.abs(avgWin).toFixed(2);
+    if (g('stat-avgloss')) g('stat-avgloss').textContent = '-$' + Math.abs(avgLoss).toFixed(2);
+    if (g('wr-pct'))   g('wr-pct').textContent = wr + '%';
+    const arc = g('wr-arc');
+    if (arc) { const c=238.76; arc.style.strokeDashoffset=c-(c*wr/100); arc.style.stroke=wr>=50?'var(--mint)':'var(--coral)'; }
+    const cv = g('pnl-canvas');
+    if (cv && pnls.length > 1) { let s=0; drawSparkline(cv, pnls.map(v=>{s+=v;return s;}), totalPnl>=0?'#00e09a':'#ff5565'); }
+    updateTjBadge();
+}
+
+function updateTjBadge() {
+    const b = document.getElementById('tj-count-badge');
+    if (b) b.textContent = trades.length + ' trade' + (trades.length !== 1 ? 's' : '');
+}
+
+/* ─────────────────────────────────────
+   PORTFOLIO
+   ───────────────────────────────────── */
+function renderPortfolio() {
+    const list = document.getElementById('pf-positions-list'); if (!list) return;
+    const positions = portfolio.positions || [];
+    const balance   = portfolio.balance   || 10000;
+    const initBal   = portfolio.initial_bal || 10000;
+    const upnl      = portfolio.unrealized_pnl || 0;
+    const margin    = portfolio.margin_used    || 0;
+    const totalPnl  = balance - initBal;
+
+    // Stat cards
+    const g = id => document.getElementById(id);
+    const balValEl = document.getElementById('pf-balance-val');
+    const balSubEl = document.getElementById('pf-balance-sub');
+    if (balValEl) balValEl.textContent = '$' + balance.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+    if (balSubEl) {
+        if (balance === initBal && totalPnl === 0) {
+            balSubEl.textContent = '⚙ Click to set your balance';
+            balSubEl.style.color = 'var(--t3)';
+        } else {
+            balSubEl.textContent = (totalPnl >= 0 ? '↑ +$' : '↓ -$') + Math.abs(totalPnl).toFixed(2) + ' total';
+            balSubEl.style.color = totalPnl >= 0 ? 'var(--mint)' : 'var(--coral)';
+        }
+    }
+    if (g('pf-upnl')) {
+        g('pf-upnl').textContent = (upnl>=0?'+':'')+'$'+Math.abs(upnl).toFixed(2);
+        g('pf-upnl').style.color = upnl >= 0 ? 'var(--mint)' : 'var(--coral)';
+    }
+    if (g('pf-margin-used')) g('pf-margin-used').textContent = '$' + margin.toLocaleString();
+    if (g('pf-margin-pct'))  g('pf-margin-pct').textContent  = (balance ? (margin/balance*100).toFixed(1) : '0') + '% of balance';
+
+    // Позиции
+    if (!positions.length) {
+        list.innerHTML = '<div style="font-family:var(--fm);font-size:11px;color:var(--t4);text-align:center;padding:24px 0;">No open positions</div>';
+    } else {
+        list.innerHTML = positions.map(p => {
+            const upnl = p.upnl || 0;
+            const roe  = p.roe  || 0;
+            const mark = p.mark || p.entry;
+            return `<div class="pf-row">
+                <span class="pf-asset">${p.asset}</span>
+                <span class="${p.direction==='LONG'?'pf-long':'pf-short'}">${p.direction}</span>
+                <span>$${(+p.size).toLocaleString()}</span>
+                <span>$${(+p.entry).toLocaleString()}</span>
+                <span>$${(+mark).toLocaleString()}</span>
+                <span class="${upnl>=0?'pf-pos':'pf-neg'}">${upnl>=0?'+':''}$${Math.abs(upnl).toFixed(2)}</span>
+                <span class="${roe>=0?'pf-pos':'pf-neg'}">${roe>=0?'+':''}${roe.toFixed(1)}%</span>
+                <button class="pf-close-btn" onclick="closeTrade(${p.id})">CLOSE</button>
+            </div>`;
+        }).join('');
+    }
+
+    // Equity curve
+    const eqCv = g('eq-canvas');
+    if (eqCv) {
+        const curve = portfolio.equity_curve || [];
+        if (curve.length > 1) {
+            const pts  = curve.map(c => c.equity);
+            const last = pts[pts.length-1];
+            drawSparkline(eqCv, pts, last >= initBal ? '#00e09a' : '#ff5565');
+        } else {
+            // Нет данных — рисуем плоскую линию
+            drawSparkline(eqCv, [balance, balance], '#00e09a');
+        }
+    }
+}
+
+// Inline редактирование баланса
+function showSetBalance() {
+    const card  = document.getElementById('pf-balance-card');
+    const edit  = document.getElementById('pf-balance-edit');
+    const input = document.getElementById('pf-balance-input');
+    if (!edit) return;
+    edit.style.display = 'block';
+    input.value = portfolio.initial_bal || 10000;
+    input.focus();
+    input.select();
+}
+function cancelBalance() {
+    const edit = document.getElementById('pf-balance-edit');
+    if (edit) edit.style.display = 'none';
+}
+async function confirmBalance() {
+    const input = document.getElementById('pf-balance-input');
+    const num   = parseFloat(input.value);
+    if (!num || num <= 0 || num > 10000000) {
+        input.style.borderColor = 'var(--coral)'; return;
+    }
+    try {
+        const r = await fetch('/api/portfolio/balance', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({balance: num})
+        });
+        const d = await r.json();
+        if (d.status === 'OK') {
+            cancelBalance();
+            await loadPortfolio();
+        } else if (d.error === 'CLOSE_POSITIONS_FIRST') {
+            input.style.borderColor = 'var(--coral)';
+            document.getElementById('pf-balance-sub').textContent = '✗ Close all positions first';
+        }
+    } catch(e) {
+        input.style.borderColor = 'var(--coral)';
+    }
+}
+
+async function closeTrade(tradeId) {
+    if (!confirm('Закрыть позицию по рыночной цене?')) return;
+    try {
+        const r = await fetch('/api/trades/close/' + tradeId, {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'
+        });
+        const d = await r.json();
+        if (d.status === 'OK') {
+            await loadPortfolio();
+        }
+    } catch(e) { console.error('closeTrade:', e); }
+}
+
+/* ─────────────────────────────────────
+   SPARKLINE HELPER
+   ───────────────────────────────────── */
+function drawSparkline(canvas, data, color) {
+    const w = canvas.offsetWidth || 400, h = canvas.offsetHeight || 80;
+    canvas.width  = w * devicePixelRatio;
+    canvas.height = h * devicePixelRatio;
+    const ctx = canvas.getContext('2d'); ctx.scale(devicePixelRatio, devicePixelRatio);
+    if (!data.length) return;
+    const mn = Math.min(...data), mx = Math.max(...data), rng = mx-mn||1, p=6;
+    const x = i => p + (i/(data.length-1))*(w-p*2);
+    const y = v => h - p - ((v-mn)/rng)*(h-p*2);
+    const g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0, color+'30'); g.addColorStop(1, color+'00');
+    ctx.beginPath(); ctx.moveTo(x(0),y(data[0]));
+    data.forEach((v,i)=>{ if(i) ctx.lineTo(x(i),y(v)); });
+    ctx.lineTo(x(data.length-1),h); ctx.lineTo(x(0),h); ctx.closePath();
+    ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x(0),y(data[0]));
+    data.forEach((v,i)=>{ if(i) ctx.lineTo(x(i),y(v)); });
+    ctx.strokeStyle=color; ctx.lineWidth=1.8; ctx.lineJoin='round'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x(data.length-1),y(data[data.length-1]),3.5,0,Math.PI*2);
+    ctx.fillStyle=color; ctx.shadowColor=color; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+}
+
+/* ─────────────────────────────────────
+   СТАРТ ВСЕХ СИСТЕМ
+   ───────────────────────────────────── */
+window.onload = () => {
+    renderWatchlist(null);
+    if (topAssets.length > 0) initChart(topAssets[0].symbol);
+    // Запускаем live-обновление цен в watchlist каждые 15 сек
+    updateWatchlistPrices();
+    setInterval(updateWatchlistPrices, 15000);
+    initMatrix();
+    initThree();
+    updateClock();
+    updatePosSize();
+    // Prefill today's date in journal form
+    const d = document.getElementById('tj-date');
+    if (d) d.value = new Date().toISOString().split('T')[0];
+    // Загружаем портфолио с сервера
+    loadPortfolio();
+    // Автообновление каждые 30 секунд
+    setInterval(loadPortfolio, 30000);
+    // Скрываем онбординг если уже видели
+    try {
+        if (localStorage.getItem('sx_onboarded') === '1') {
+            const ob = document.getElementById('onboarding-overlay');
+            if (ob) ob.remove();
+        }
+    } catch(e) {}
+    // Загружаем счётчик сигналов
+    loadSignalCounter();
+};
+
+async function loadProfile() {
+    try {
+        const res = await fetch('/api/profile');
+        if (!res.ok) {
+            console.warn('Profile fetch failed:', res.status);
+            // Show minimal info from session data already in page
+            const nameEl = document.getElementById('prof-name');
+            if (nameEl && nameEl.textContent === '') {
+                nameEl.textContent = document.querySelector('.user-pill-name')?.textContent || 'USER';
+            }
+            return;
+        }
+        const d = await res.json();
+        if (d.error) { console.warn('Profile error:', d.error); return; }
+        
+        // Аватар
+        const ava = document.getElementById('prof-ava');
+        if (d.photo) {
+            ava.innerHTML = '<img src="'+d.photo+'" style="width:72px;height:72px;border-radius:50%;object-fit:cover;">';
+        } else {
+            ava.textContent = (d.name||'U')[0].toUpperCase();
+        }
+        
+        document.getElementById('prof-name').textContent  = d.name  || 'USER';
+        document.getElementById('prof-email').textContent = d.email || '';
+        document.getElementById('prof-signals-today').textContent = d.signals_today+'/'+d.signals_limit;
+        document.getElementById('prof-signals-total').textContent = d.signals_total || 0;
+        document.getElementById('prof-refs').textContent          = d.ref_count || 0;
+        
+        // Badge
+        const badge = document.getElementById('prof-badge');
+        badge.innerHTML = d.is_premium
+            ? '<span style="background:linear-gradient(135deg,#b8ff00,#7fff00);color:#000;font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:3px;padding:4px 14px;">★ PREMIUM</span>'
+            : '<span style="border:1px solid rgba(240,244,255,0.2);color:rgba(240,244,255,0.4);font-family:\'Share Tech Mono\',monospace;font-size:10px;padding:4px 12px;">FREE TIER</span>';
+        
+        // Ref link
+        const refInput = document.getElementById('prof-ref-link');
+        if (refInput) refInput.value = d.ref_link || '';
+        
+        // Premium block
+        if (d.is_premium && d.premium_until) {
+            document.getElementById('prof-premium-block').style.display = 'block';
+            document.getElementById('prof-premium-info').textContent = 
+                'Активен до: ' + (d.premium_until||'').substring(0,10) + ' | Сигналов/день: ' + d.signals_limit;
+        }
+    } catch(e) { console.error('loadProfile:', e); }
+}
+
+function copyProfileRef() {
+    const inp = document.getElementById('prof-ref-link');
+    if (!inp) return;
+    inp.select();
+    document.execCommand('copy');
+    const btn = inp.nextElementSibling;
+    const orig = btn.textContent;
+    btn.textContent = '✓ COPIED';
+    btn.style.color = '#b8ff00';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+}
+
+// ── LIVE SIGNAL TICKER ────────────────────────────────────────────────────
+async function loadSignalTicker() {
+  try {
+    const res = await fetch('/api/signals/feed');
+    if (!res.ok) return;
+    const data = await res.json();
+    const signals = data.feed || data.signals || (Array.isArray(data) ? data : []);
+    if (!Array.isArray(signals) || signals.length === 0) return;
+
+    const content = document.getElementById('ticker-content');
+    if (!content) return;
+
+    // Строим строку из сигналов
+    let parts = signals.map(s => {
+      const dir    = s.direction || 'LONG';
+      const col    = dir === 'LONG' ? '#00ff64' : '#ff1e50';
+      const arrow  = dir === 'LONG' ? '▲' : '▼';
+      const asset  = (s.asset || s.symbol || '???').replace('-USDT','');
+      const ago    = s.time_ago || '';
+      return `<span style="color:${col};margin:0 4px">${arrow}</span><span style="color:rgba(240,244,255,0.7)">${asset}</span><span style="color:rgba(240,244,255,0.3);margin:0 16px 0 6px">${ago}</span>`;
+    });
+
+    // Дублируем для бесконечной прокрутки
+    const full = parts.join('<span style="color:rgba(184,255,0,0.3);margin:0 20px">◈</span>');
+    content.innerHTML = full + '<span style="margin:0 30px;color:rgba(184,255,0,0.2)">⬡</span>' + full;
+
+    // Пересчитываем скорость на основе длины
+    const inner = document.getElementById('ticker-inner');
+    const textLen = content.scrollWidth;
+    const speed = Math.max(20, Math.min(80, textLen / 30));
+    if (inner) inner.style.animation = `ticker-scroll ${speed}s linear infinite`;
+
+  } catch(e) { console.warn('ticker:', e); }
+}
+
+loadSignalTicker();
+setInterval(loadSignalTicker, 90000); // обновляем каждые 90с
+
+// ── ONBOARDING ────────────────────────────────────────────────────────────
+let _obStep = 1;
+const _obSteps = 3;
+
+function obNext() {
+  if (_obStep < _obSteps) {
+    document.getElementById('ob-step-' + _obStep).style.display = 'none';
+    _obStep++;
+    document.getElementById('ob-step-' + _obStep).style.display = 'block';
+    document.getElementById('ob-progress').style.width = ((_obStep/_obSteps)*100) + '%';
+    if (_obStep === _obSteps) {
+      document.getElementById('ob-btn-next').textContent = 'НАЧАТЬ ТОРГОВЛЮ ✓';
+    }
+  } else {
+    obSkip();
+  }
+}
+
+function obSkip() {
+  const ov = document.getElementById('onboarding-overlay');
+  if (ov) {
+    ov.style.opacity = '0';
+    ov.style.transition = 'opacity 0.3s';
+    setTimeout(() => ov.remove(), 300);
+  }
+  // Сохраняем что онбординг пройден
+  try { localStorage.setItem('sx_onboarded', '1'); } catch(e) {}
+}
+</script>
+
+<!-- ═══════════ PROFILE OVERLAY ═══════════ -->
+<div id="ov-profile" class="ov-panel" style="width:400px;max-width:95vw;top:50%;left:50%;transform:translate(-50%,-50%) translateY(20px) scale(0.97);">
+  <div class="ov-head">
+    <div class="ov-title-group">
+      <div class="ov-icon" style="background:rgba(123,0,255,0.1);border:1px solid rgba(123,0,255,0.3);">◈</div>
+      <span class="ov-h1" style="color:#b89fff;">ПРОФИЛЬ</span>
+    </div>
+    <button class="ov-close" onclick="closeAllOverlays()">✕</button>
+  </div>
+  <div class="ov-body" id="profile-body">
+    <div class="ov-scroll" style="padding:20px;">
+      <div style="text-align:center;padding:20px 0 16px;">
+        <div id="prof-ava" style="width:72px;height:72px;border-radius:50%;background:rgba(123,0,255,0.2);border:2px solid rgba(123,0,255,0.4);margin:0 auto 12px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;color:#b8ff00;"></div>
+        <div id="prof-name" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#f0f4ff;"></div>
+        <div id="prof-email" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(240,244,255,0.4);margin-top:4px;"></div>
+        <div id="prof-badge" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- Статистика -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div class="prof-stat-card"><div id="prof-signals-today" class="prof-stat-val">—</div><div class="prof-stat-lbl">СИГНАЛОВ<br>СЕГОДНЯ</div></div>
+        <div class="prof-stat-card"><div id="prof-signals-total" class="prof-stat-val">—</div><div class="prof-stat-lbl">ВСЕГО<br>СИГНАЛОВ</div></div>
+        <div class="prof-stat-card"><div id="prof-refs" class="prof-stat-val">—</div><div class="prof-stat-lbl">РЕФЕР-<br>АЛОВ</div></div>
+      </div>
+
+      <!-- Реферальная ссылка -->
+      <div style="margin-bottom:14px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(240,244,255,0.4);letter-spacing:2px;margin-bottom:6px;">◈ РЕФЕРАЛЬНАЯ ССЫЛКА</div>
+        <div style="display:flex;gap:6px;">
+          <input id="prof-ref-link" readonly style="flex:1;height:32px;background:rgba(123,0,255,0.06);border:1px solid rgba(123,0,255,0.25);color:#f0f4ff;font-family:'Share Tech Mono',monospace;font-size:10px;padding:0 10px;outline:none;">
+          <button onclick="copyProfileRef()" style="height:32px;padding:0 12px;background:rgba(184,255,0,0.1);border:1px solid rgba(184,255,0,0.3);color:#b8ff00;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;">COPY</button>
+        </div>
+        <div style="margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(240,244,255,0.35);">
+          За каждого приглашённого пользователя ты получаешь бонусный сигнал в день
+        </div>
+      </div>
+
+      <!-- Статус Premium -->
+      <div id="prof-premium-block" style="margin-bottom:16px;display:none;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(240,244,255,0.4);letter-spacing:2px;margin-bottom:6px;">◈ PREMIUM СТАТУС</div>
+        <div id="prof-premium-info" style="padding:10px 12px;background:rgba(184,255,0,0.06);border:1px solid rgba(184,255,0,0.2);font-family:'Share Tech Mono',monospace;font-size:10px;color:#b8ff00;"></div>
+      </div>
+
+      <!-- Кнопки -->
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        {% if not user.is_premium %}
+        <a href="/premium" style="flex:1;height:38px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(184,255,0,0.15),rgba(184,255,0,0.05));border:1px solid rgba(184,255,0,0.4);color:#b8ff00;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:3px;text-decoration:none;">★ PREMIUM</a>
+        {% endif %}
+        <a href="/logout" style="flex:1;height:38px;display:flex;align-items:center;justify-content:center;background:rgba(255,30,80,0.08);border:1px solid rgba(255,30,80,0.3);color:#ff1e50;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;text-decoration:none;">ВЫХОД</a>
+      </div>
+    </div><!-- /ov-scroll -->
+  </div><!-- /ov-body -->
+</div><!-- /ov-profile -->
+
+<!-- ═══ LIVE SIGNAL TICKER (нижняя полоса) ═══ -->
+<div id="signal-ticker-bar" style="
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  height: 28px; background: rgba(3,6,15,0.97);
+  border-top: 1px solid rgba(184,255,0,0.15);
+  display: flex; align-items: center; overflow: hidden;
+  font-family: 'Share Tech Mono', monospace; font-size: 9px;
+  letter-spacing: 1px;
+">
+  <div style="
+    min-width: 90px; padding: 0 12px;
+    border-right: 1px solid rgba(184,255,0,0.15);
+    color: var(--acid); display: flex; align-items: center; gap: 6px;
+    height: 100%;
+  ">
+    <span style="width:6px;height:6px;border-radius:50%;background:#b8ff00;display:inline-block;animation:pulse 1s infinite;flex-shrink:0;"></span>
+    LIVE FEED
+  </div>
+  <div style="flex:1;overflow:hidden;height:100%;display:flex;align-items:center;">
+    <div id="ticker-inner" style="
+      display: flex; gap: 0; white-space: nowrap;
+      animation: ticker-scroll 40s linear infinite;
+      will-change: transform;
+    ">
+      <span id="ticker-content" style="color:rgba(240,244,255,0.5);">⟳ ЗАГРУЗКА СИГНАЛОВ...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ONBOARDING (только при первом входе) ═══ -->
+{% if first_visit %}
+<div id="onboarding-overlay" style="
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+">
+  <div style="
+    width:480px;max-width:92vw;
+    background:rgba(3,6,15,0.98);
+    border:1px solid rgba(123,0,255,0.4);
+    box-shadow:0 0 60px rgba(123,0,255,0.15);
+    position:relative;
+  ">
+    <!-- Прогресс -->
+    <div style="display:flex;height:3px;">
+      <div id="ob-progress" style="background:linear-gradient(90deg,#7b00ff,#00e5ff);width:33%;transition:width 0.4s;"></div>
+    </div>
+
+    <div style="padding:28px 28px 24px;">
+      <!-- Шаг 1 -->
+      <div id="ob-step-1">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;background:linear-gradient(135deg,#7b00ff,#00e5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;">ДОБРО ПОЖАЛОВАТЬ</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(240,244,255,0.5);letter-spacing:2px;margin-bottom:20px;">SYNAPSE X // QUANTUM TRADING TERMINAL</div>
+        <div style="font-size:15px;color:rgba(240,244,255,0.85);line-height:1.7;margin-bottom:24px;">
+          За <b style="color:#b8ff00">3 шага</b> ты узнаешь как получить первый торговый сигнал с AI-анализом.
+        </div>
+        <div style="padding:14px 16px;background:rgba(123,0,255,0.08);border:1px solid rgba(123,0,255,0.2);margin-bottom:20px;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(240,244,255,0.4);letter-spacing:2px;margin-bottom:8px;">◈ ЧТО УМЕЕТ TERМИНАЛ</div>
+          <div style="font-size:12px;color:rgba(240,244,255,0.7);line-height:2;">
+            🔴 Анализ рынка в реальном времени<br>
+            📊 AI-сигналы с TP/SL и RR расчётом<br>
+            ⚡ Вход по маркету одной кнопкой<br>
+            ◈ Поиск оптимальной точки входа
+          </div>
+        </div>
+      </div>
+
+      <!-- Шаг 2 -->
+      <div id="ob-step-2" style="display:none;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#7b00ff;letter-spacing:3px;margin-bottom:16px;">ШАГ 2 / 3 — НАСТРОЙКИ</div>
+        <div style="font-size:15px;color:#f0f4ff;margin-bottom:20px;">Выбери <b style="color:#b8ff00">актив</b> и <b style="color:#00e5ff">параметры позиции</b></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div style="padding:14px;background:rgba(184,255,0,0.06);border:1px solid rgba(184,255,0,0.2);">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:#b8ff00;letter-spacing:2px;margin-bottom:6px;">АКТИВ</div>
+            <div style="font-size:13px;color:#f0f4ff;">В поиске слева выбери монету: BTC, ETH, SOL...</div>
+          </div>
+          <div style="padding:14px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:#00e5ff;letter-spacing:2px;margin-bottom:6px;">ПЛЕЧО / МАРЖА</div>
+            <div style="font-size:13px;color:#f0f4ff;">Укажи плечо (20x) и размер позиции ($100)</div>
+          </div>
+        </div>
+        <div style="padding:12px 14px;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.2);font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(255,200,0,0.8);">
+          ⚠️ Рекомендуем начинать с плечом 10–20x и небольшой маржой.
+        </div>
+      </div>
+
+      <!-- Шаг 3 -->
+      <div id="ob-step-3" style="display:none;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#7b00ff;letter-spacing:3px;margin-bottom:16px;">ШАГ 3 / 3 — ПОЛУЧИ СИГНАЛ</div>
+        <div style="font-size:15px;color:#f0f4ff;margin-bottom:20px;">Три способа получить <b style="color:#b8ff00">AI-сигнал</b>:</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+          <div style="padding:12px 14px;background:rgba(0,255,100,0.06);border:1px solid rgba(0,255,100,0.2);display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px;">▲</span>
+            <div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00ff64;margin-bottom:3px;">LONG / SHORT МАРКЕТ</div><div style="font-size:12px;color:rgba(240,244,255,0.6);">Войти прямо сейчас по текущей цене</div></div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px;">◈</span>
+            <div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00e5ff;margin-bottom:3px;">ТОЧКА ВХОДА</div><div style="font-size:12px;color:rgba(240,244,255,0.6);">AI найдёт лучшую зону для входа</div></div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(123,0,255,0.06);border:1px solid rgba(123,0,255,0.2);display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px;">⌘</span>
+            <div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#b89fff;margin-bottom:3px;">CMD_INPUT + EXEC</div><div style="font-size:12px;color:rgba(240,244,255,0.6);">Напиши вопрос или команду в поле ввода</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Кнопки -->
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="obSkip()" style="height:40px;padding:0 20px;background:transparent;border:1px solid rgba(240,244,255,0.15);color:rgba(240,244,255,0.4);font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:2px;">ПРОПУСТИТЬ</button>
+        <button id="ob-btn-next" onclick="obNext()" style="height:40px;padding:0 24px;background:linear-gradient(135deg,rgba(123,0,255,0.3),rgba(0,229,255,0.1));border:1px solid #7b00ff;color:#f0f4ff;font-family:'Bebas Neue',sans-serif;font-size:16px;cursor:pointer;letter-spacing:4px;">ДАЛЕЕ →</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+</body>
+</html>

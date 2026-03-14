@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYNAPSE X // SIGNAL BREACH // AI CORE</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════
+   SIGNAL BREACH — AGGRESSIVE CRYPTO MAXIMALISM
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --void:    #000000;
+  --deep:    #03060f;
+  --surface: #070d1a;
+
+  --acid:    #b8ff00;
+  --acid-g:  rgba(184,255,0,0.25);
+  --acid-s:  rgba(184,255,0,0.08);
+  --volt:    #7b00ff;
+  --volt-g:  rgba(123,0,255,0.35);
+  --hot:     #ff1744;
+  --hot-g:   rgba(255,23,68,0.3);
+  --ice:     #00e5ff;
+  --ice-g:   rgba(0,229,255,0.25);
+  --white:   #ffffff;
+
+  --t1: #f0f4ff;
+  --t2: rgba(240,244,255,0.55);
+  --t3: rgba(240,244,255,0.28);
+  --t4: rgba(240,244,255,0.12);
+
+  --b1: rgba(255,255,255,0.06);
+  --b2: rgba(255,255,255,0.1);
+
+  --fb: 'Bebas Neue', sans-serif;
+  --fc: 'Barlow Condensed', sans-serif;
+  --fm: 'Share Tech Mono', monospace;
+}
+
+html, body {
+  width: 100vw; height: 100vh; overflow: hidden;
+  background: var(--void);
+  color: var(--t1);
+  font-family: var(--fc);
+  display: flex; flex-direction: column;
+  cursor: crosshair;
+}
+
+/* ── WORLD ── */
+#bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+.world { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+
+/* Diagonal slash overlay */
+.w-slash {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    108deg,
+    transparent 0%,
+    transparent 42%,
+    rgba(184,255,0,0.015) 42%,
+    rgba(184,255,0,0.015) 43%,
+    transparent 43%,
+    transparent 68%,
+    rgba(123,0,255,0.02) 68%,
+    rgba(123,0,255,0.02) 69%,
+    transparent 69%
+  );
+}
+
+/* Radial heat */
+.w-heat {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 50% 60% at 50% 50%, rgba(123,0,255,0.08) 0%, transparent 65%),
+    radial-gradient(ellipse 30% 40% at 15% 80%, rgba(184,255,0,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 40% at 85% 20%, rgba(0,229,255,0.04) 0%, transparent 60%);
+}
+
+/* Grid */
+.w-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(184,255,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184,255,0,0.03) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Noise grain */
+.w-noise {
+  position: absolute; inset: 0; opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px;
+}
+
+/* CRT scanlines */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.12) 1px, rgba(0,0,0,0.12) 3px);
+}
+
+/* ── HUD BAR ── */
+.hud {
+  height: 34px; flex-shrink: 0; position: relative; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(0,0,0,0.9);
+  border-bottom: 1px solid rgba(184,255,0,0.2);
+  font-family: var(--fm); font-size: 9px; letter-spacing: 1.5px;
+}
+
+.hud::after {
+  content: ""; position: absolute; bottom: -2px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--acid) 30%, var(--volt) 70%, transparent);
+  opacity: 0.4;
+}
+
+.hud-l { color: var(--acid); text-shadow: 0 0 8px var(--acid); }
+.hud-c { color: rgba(255,255,255,0.35); }
+
+#hud-clock {
+  font-family: var(--fm); font-size: 11px; font-weight: 700;
+  color: var(--acid); text-shadow: 0 0 12px var(--acid-g), 0 0 24px var(--acid-g);
+  letter-spacing: 2px;
+}
+
+.hud-r { display: flex; align-items: center; gap: 16px; color: var(--t3); }
+
+.lang-wrap { display: flex; gap: 0; border: 1px solid rgba(184,255,0,0.25); }
+.lang-wrap span {
+  padding: 2px 8px; font-family: var(--fm); font-size: 9px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s; color: var(--t3);
+}
+.lang-wrap span.on { background: var(--acid); color: var(--void); text-shadow: none; }
+.lang-wrap span:hover:not(.on) { color: var(--acid); }
+
+/* ── HERO BAR ── */
+.hero-bar {
+  flex-shrink: 0; position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  height: 80px;
+  border-bottom: 1px solid var(--b1);
+  overflow: hidden;
+}
+
+/* Big diagonal background text */
+.hero-bar::before {
+  content: "SYNAPSE";
+  position: absolute; left: -10px; top: -15px;
+  font-family: var(--fb); font-size: 110px; letter-spacing: -4px;
+  color: rgba(184,255,0,0.03);
+  pointer-events: none; user-select: none;
+  white-space: nowrap;
+}
+
+.logo-group { display: flex; align-items: center; gap: 16px; }
+
+.logo-mark {
+  position: relative; width: 44px; height: 44px;
+  display: grid; place-items: center;
+}
+.logo-mark::before {
+  content: ""; position: absolute; inset: 0;
+  border: 2px solid var(--acid);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  box-shadow: 0 0 20px var(--acid-g), inset 0 0 15px var(--acid-s);
+  animation: hex-pulse 3s ease-in-out infinite;
+}
+@keyframes hex-pulse {
+  0%,100% { box-shadow: 0 0 20px var(--acid-g), inset 0 0 15px var(--acid-s); }
+  50%     { box-shadow: 0 0 40px rgba(184,255,0,0.5), inset 0 0 25px rgba(184,255,0,0.15); }
+}
+.logo-mark-inner { font-family: var(--fb); font-size: 18px; color: var(--acid); z-index: 1; text-shadow: 0 0 10px var(--acid); }
+
+.logo-text-group { display: flex; flex-direction: column; gap: 0; }
+
+.logo-main {
+  font-family: var(--fb); font-size: 42px; line-height: 0.9; letter-spacing: 4px;
+  background: linear-gradient(90deg, #fff 0%, var(--acid) 60%, var(--ice) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: logo-flicker 8s ease-in-out infinite;
+}
+@keyframes logo-flicker {
+  0%,94%,96%,98%,100% { opacity: 1; }
+  95%,97% { opacity: 0.7; }
+}
+
+.logo-sub {
+  font-family: var(--fm); font-size: 8px; letter-spacing: 4px;
+  color: var(--volt); text-shadow: 0 0 8px var(--volt);
+  text-transform: uppercase;
+}
+
+/* Glitch stripe on logo */
+.glitch-stripe {
+  position: absolute; left: 0; right: 0;
+  height: 2px; background: var(--acid); opacity: 0;
+  animation: glitch-scan 6s ease-in-out infinite;
+}
+@keyframes glitch-scan {
+  0%,89%,100% { opacity: 0; top: 10%; }
+  90% { opacity: 0.8; top: 10%; }
+  91% { opacity: 0; top: 40%; }
+  92% { opacity: 0.6; top: 40%; }
+  93% { opacity: 0; top: 70%; }
+}
+
+.hero-stats {
+  display: flex; gap: 24px; align-items: center;
+}
+.hstat {
+  text-align: center; position: relative;
+}
+.hstat::after {
+  content: ""; position: absolute; right: -12px; top: 20%; bottom: 20%;
+  width: 1px; background: var(--b2);
+}
+.hstat:last-child::after { display: none; }
+.hstat-val {
+  font-family: var(--fb); font-size: 26px; line-height: 1;
+  text-shadow: 0 0 20px currentColor;
+}
+.hstat-lbl { font-family: var(--fm); font-size: 7px; color: var(--t3); letter-spacing: 2px; margin-top: 2px; }
+
+/* ── MAIN GRID ── */
+.layout {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 290px 1fr 290px;
+  gap: 0;
+  position: relative; z-index: 10;
+}
+
+/* Column dividers */
+.col-l, .col-r {
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--b1);
+  overflow: hidden;
+}
+.col-r { border-right: none; border-left: 1px solid var(--b1); }
+.col-m { display: flex; flex-direction: column; min-height: 0; }
+
+/* ── PANEL BLOCKS ── */
+.block {
+  border-bottom: 1px solid var(--b1);
+  padding: 14px 16px;
+  position: relative;
+}
+.block-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.block-title {
+  font-family: var(--fm); font-size: 8px; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--t3);
+  display: flex; align-items: center; gap: 6px;
+}
+.block-title::before { content: "▶"; font-size: 6px; color: var(--acid); }
+
+/* ── ENTER TERMINAL BUTTON ── */
+.btn-terminal {
+  display: block; width: 100%;
+  padding: 16px 20px; text-decoration: none;
+  font-family: var(--fb); font-size: 22px; letter-spacing: 4px;
+  text-align: center; text-transform: uppercase;
+  color: var(--void);
+  background: var(--acid);
+  position: relative; overflow: hidden;
+  transition: all 0.2s;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  box-shadow: 0 0 30px var(--acid-g), 0 0 60px rgba(184,255,0,0.15);
+  animation: cta-breathe 2.5s ease-in-out infinite;
+}
+@keyframes cta-breathe {
+  0%,100% { box-shadow: 0 0 30px var(--acid-g), 0 0 60px rgba(184,255,0,0.15); }
+  50%     { box-shadow: 0 0 50px rgba(184,255,0,0.6), 0 0 100px rgba(184,255,0,0.25); }
+}
+.btn-terminal::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.4s;
+}
+.btn-terminal:hover::before { transform: translateX(100%); }
+.btn-terminal:hover { transform: scaleX(1.01); }
+.btn-terminal-label { font-size: 8px; letter-spacing: 3px; opacity: 0.7; display: block; font-family: var(--fm); margin-top: 1px; }
+
+/* ── REGISTER / LOGIN BUTTONS ── */
+.btn-register {
+  display: block; width: 100%;
+  padding: 12px 20px; text-decoration: none;
+  font-family: var(--fb); font-size: 16px; letter-spacing: 3px;
+  text-align: center; text-transform: uppercase;
+  color: var(--acid);
+  background: transparent;
+  border: 1px solid var(--acid);
+  position: relative; overflow: hidden;
+  transition: all 0.25s;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.btn-register::before {
+  content: ""; position: absolute; inset: 0;
+  background: rgba(184,255,0,0.08);
+  opacity: 0; transition: opacity 0.25s;
+}
+.btn-register:hover { color: var(--void); background: var(--acid); }
+.btn-register:hover::before { opacity: 1; }
+.btn-register-label { font-size: 8px; letter-spacing: 3px; opacity: 0.6; display: block; font-family: var(--fm); margin-top: 1px; }
+
+.btn-login-small {
+  display: block; width: 100%;
+  padding: 9px 20px; text-decoration: none;
+  font-family: var(--fm); font-size: 10px; letter-spacing: 3px;
+  text-align: center; text-transform: uppercase;
+  color: var(--t3);
+  background: transparent;
+  border: 1px solid rgba(240,244,255,0.1);
+  transition: all 0.2s;
+}
+.btn-login-small:hover { color: var(--t1); border-color: rgba(240,244,255,0.3); background: rgba(255,255,255,0.04); }
+
+/* Divider auth */
+.auth-divider {
+  display: flex; align-items: center; gap: 8px;
+  margin: 6px 0;
+}
+.auth-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+.auth-divider-text { font-family: var(--fm); font-size: 8px; color: var(--t4); letter-spacing: 2px; }
+
+/* Auth status badge */
+.auth-badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; margin-bottom: 8px;
+  background: rgba(184,255,0,0.06); border: 1px solid rgba(184,255,0,0.15);
+  font-family: var(--fm); font-size: 9px; color: var(--acid); letter-spacing: 2px;
+}
+.auth-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--acid); animation: blink 1.5s infinite; }
+.auth-badge-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ── BUY BUTTON ── */
+.btn-buy {
+  display: block; width: 100%; padding: 11px;
+  text-decoration: none; text-align: center;
+  font-family: var(--fb); font-size: 16px; letter-spacing: 3px;
+  color: var(--acid); background: transparent;
+  border: 1px solid var(--acid);
+  position: relative; overflow: hidden; transition: all 0.25s;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+.btn-buy::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--acid); transform: translateY(100%); transition: transform 0.25s;
+}
+.btn-buy:hover { color: var(--void); }
+.btn-buy:hover::before { transform: translateY(0); }
+.btn-buy span { position: relative; z-index: 1; }
+
+/* Social buttons */
+.btn-social {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px; text-decoration: none;
+  font-family: var(--fm); font-size: 9px; letter-spacing: 2px;
+  color: var(--t2); background: var(--b1); border: 1px solid var(--b2);
+  transition: all 0.2s;
+}
+.btn-social:hover { border-color: var(--acid); color: var(--acid); background: var(--acid-s); }
+
+/* ── NEURAL STREAM ── */
+.stream-wrap { flex: 1; overflow: hidden; padding: 10px 14px; }
+#neural-stream { font-family: var(--fm); font-size: 8px; line-height: 1.8; }
+.log-entry {
+  color: var(--acid); text-shadow: 0 0 6px rgba(184,255,0,0.4);
+  animation: log-in 0.3s ease;
+}
+@keyframes log-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; } }
+.log-entry.warn { color: var(--ice); text-shadow: 0 0 6px var(--ice-g); }
+.log-entry.alert { color: var(--hot); text-shadow: 0 0 6px var(--hot-g); }
+.log-entry.sys  { color: var(--volt); text-shadow: 0 0 6px var(--volt-g); }
+
+/* ── UPLINK ── */
+.uplink-wrap {
+  padding: 10px 14px;
+  border-top: 1px solid var(--b1);
+  background: rgba(184,255,0,0.02);
+  flex-shrink: 0;
+}
+.uplink-label { font-family: var(--fm); font-size: 7px; color: var(--acid); letter-spacing: 2px; margin-bottom: 5px; }
+.uplink-row { display: flex; align-items: center; gap: 8px; border: 1px solid rgba(184,255,0,0.2); padding: 6px 10px; }
+.uplink-prompt { color: var(--acid); font-family: var(--fm); font-size: 11px; text-shadow: 0 0 8px var(--acid); }
+.uplink-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  font-family: var(--fm); font-size: 10px; color: var(--t1);
+  letter-spacing: 1px;
+}
+.uplink-input::placeholder { color: var(--t4); }
+
+/* ── CONTRACT ADDRESS ── */
+.ca-wrap { padding: 10px 14px; flex-shrink: 0; }
+.ca-box {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,0.6); border: 1px solid rgba(184,255,0,0.15);
+  padding: 8px 10px;
+}
+.ca-text { font-family: var(--fm); font-size: 7px; color: rgba(184,255,0,0.7); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-copy {
+  font-family: var(--fm); font-size: 8px; color: var(--t3); background: none; border: 1px solid var(--b2);
+  padding: 2px 8px; cursor: pointer; transition: all 0.2s; white-space: nowrap; letter-spacing: 1px;
+}
+.ca-copy:hover { color: var(--acid); border-color: var(--acid); }
+
+/* ── NEURAL CORE CENTER ── */
+.core-wrap {
+  flex: 1; position: relative; display: flex;
+  align-items: center; justify-content: center;
+  overflow: hidden;
+}
+
+/* Radar rings */
+.radar-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(184,255,0,0.06);
+  pointer-events: none;
+}
+
+#core-canvas { width: 100%; height: 100%; background: transparent; }
+
+/* Stats orbit around core */
+.core-stats {
+  position: absolute; bottom: 12px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 32px;
+  pointer-events: none;
+}
+.cstat {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid var(--b2);
+  padding: 8px 16px;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  position: relative;
+}
+.cstat::before {
+  content: ""; position: absolute; top: 0; left: 6px; right: 0; height: 1px;
+}
+.cstat.c1::before { background: var(--acid); box-shadow: 0 0 8px var(--acid); }
+.cstat.c2::before { background: var(--ice);  box-shadow: 0 0 8px var(--ice); }
+.cstat.c3::before { background: var(--volt); box-shadow: 0 0 8px var(--volt); }
+.cstat-val { font-family: var(--fb); font-size: 20px; line-height: 1; }
+.cstat.c1 .cstat-val { color: var(--acid); text-shadow: 0 0 12px var(--acid); }
+.cstat.c2 .cstat-val { color: var(--ice);  text-shadow: 0 0 12px var(--ice); }
+.cstat.c3 .cstat-val { color: var(--volt); text-shadow: 0 0 12px var(--volt); }
+.cstat-lbl { font-family: var(--fm); font-size: 7px; color: var(--t3); letter-spacing: 2px; margin-top: 2px; }
+
+/* Center status ring */
+.core-status {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--fm); font-size: 8px; letter-spacing: 2px;
+  color: var(--acid); text-shadow: 0 0 8px var(--acid);
+  background: rgba(0,0,0,0.8); border: 1px solid rgba(184,255,0,0.2);
+  padding: 4px 12px;
+}
+.core-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--acid); box-shadow: 0 0 8px var(--acid);
+  animation: blink 1.5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+/* ── ROADMAP ── */
+.roadmap-list { display: flex; flex-direction: column; gap: 0; }
+
+.rm-item {
+  display: flex; gap: 12px; padding: 12px 0;
+  border-bottom: 1px solid var(--b1); position: relative;
+}
+.rm-item:last-child { border-bottom: none; }
+
+.rm-num {
+  font-family: var(--fb); font-size: 28px; line-height: 1;
+  color: var(--b2); flex-shrink: 0; width: 32px; text-align: center;
+  transition: all 0.3s;
+}
+.rm-item.active .rm-num { color: var(--acid); text-shadow: 0 0 12px var(--acid); }
+.rm-item.done .rm-num  { color: rgba(184,255,0,0.4); }
+
+.rm-body { flex: 1; min-width: 0; }
+.rm-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.rm-phase { font-family: var(--fc); font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+.rm-item.active .rm-phase { color: var(--acid); }
+.rm-item.done   .rm-phase { color: rgba(184,255,0,0.5); }
+.rm-item.locked .rm-phase { color: var(--t3); }
+
+.rm-tag {
+  font-family: var(--fm); font-size: 7px; letter-spacing: 1.5px; padding: 1px 6px;
+}
+.rm-tag.active { background: var(--acid-s); border: 1px solid rgba(184,255,0,0.3); color: var(--acid); }
+.rm-tag.done   { background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2); color: var(--ice); }
+.rm-tag.locked { background: var(--b1); border: 1px solid var(--b2); color: var(--t4); }
+
+.rm-desc { font-family: var(--fm); font-size: 8px; color: var(--t3); letter-spacing: 0.5px; margin-bottom: 6px; }
+
+.rm-bar { height: 2px; background: var(--b1); overflow: hidden; }
+.rm-fill { height: 100%; transition: width 1s ease; }
+.rm-item.active .rm-fill { background: linear-gradient(90deg, var(--acid), rgba(184,255,0,0.5)); box-shadow: 0 0 6px var(--acid); }
+.rm-item.done   .rm-fill { background: rgba(0,229,255,0.4); }
+
+/* ── DISTRIBUTION ── */
+.dist-wrap { display: flex; align-items: center; gap: 14px; }
+.dist-canvas-wrap { flex-shrink: 0; }
+.dist-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.dist-row {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--fm); font-size: 9px;
+}
+.dist-dot { width: 6px; height: 6px; border-radius: 1px; flex-shrink: 0; }
+.dist-label { flex: 1; color: var(--t2); letter-spacing: 0.5px; }
+.dist-pct { color: var(--t1); font-weight: 700; }
+
+/* ── TICKER ── */
+.ticker-wrap {
+  overflow: hidden; white-space: nowrap;
+  border-top: 1px solid rgba(184,255,0,0.12);
+  border-bottom: 1px solid rgba(184,255,0,0.12);
+  background: rgba(184,255,0,0.025);
+  padding: 5px 0; flex-shrink: 0;
+}
+.ticker-inner {
+  display: inline-block;
+  animation: ticker-scroll 25s linear infinite;
+  font-family: var(--fm); font-size: 9px;
+  color: rgba(184,255,0,0.6); letter-spacing: 1.5px;
+}
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── ENTRY ANIMATION ── */
+@keyframes rise { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:translateY(0);} }
+.col-l  { animation: rise 0.5s 0.1s ease both; }
+.col-m  { animation: rise 0.5s 0.15s ease both; }
+.col-r  { animation: rise 0.5s 0.2s ease both; }
+.hero-bar { animation: rise 0.4s ease both; }
+
+/* ── MOBILE ── */
+@media (max-width: 1024px) {
+  html, body { height: auto; min-height: 100vh; overflow-y: auto; overflow-x: hidden; display: block; }
+  .hud { flex-wrap: wrap; height: auto; padding: 8px 14px; gap: 8px; justify-content: center; }
+  .hero-bar { height: auto; padding: 14px; flex-wrap: wrap; gap: 12px; }
+  .hero-bar::before { display: none; }
+  .logo-main { font-size: 32px; }
+  .hero-stats { gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .layout { display: flex; flex-direction: column; }
+  .col-l, .col-r { border: none; border-bottom: 1px solid var(--b1); }
+  .col-m { min-height: 380px; }
+  .core-stats { gap: 12px; }
+  .cstat { padding: 6px 10px; }
+  .cstat-val { font-size: 16px; }
+  .ticker-wrap { display: none; }
+}
+
+/* ── Live Prices ───────────────────── */
+.price-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.price-row:last-child { border-bottom: none; }
+.price-sym { font-family: var(--fm); font-size: 9px; color: var(--t2); letter-spacing: 1px; }
+.price-val { font-family: var(--fm); font-size: 10px; color: var(--t1); }
+.price-chg { font-family: var(--fm); font-size: 9px; min-width: 52px; text-align: right; }
+.price-chg.up  { color: #00ff64; }
+.price-chg.dn  { color: #ff1e50; }
+.price-row-skeleton {
+  height: 22px; background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite; margin-bottom: 4px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.live-stat-card {
+  background: rgba(123,0,255,0.06); border: 1px solid rgba(123,0,255,0.18);
+  padding: 10px 8px; text-align: center;
+}
+.live-stat-val { font-family: var(--fb); font-size: 20px; color: var(--acid); letter-spacing: 2px; }
+.live-stat-lbl { font-family: var(--fm); font-size: 8px; color: var(--t3); letter-spacing: 1px; margin-top:3px; line-height:1.4; }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="world">
+  <div class="w-slash"></div>
+  <div class="w-heat"></div>
+  <div class="w-grid"></div>
+  <div class="w-noise"></div>
+</div>
+
+<!-- ══ TICKER ══ -->
+<div class="ticker-wrap">
+  <div class="ticker-inner">
+    ◈ SYNAPSE_X NEURAL CORE ONLINE &nbsp;◈&nbsp; $SYNX SIGNAL BREACH ACTIVE &nbsp;◈&nbsp; AI_ENGINE V8.5 LOCKED &amp; LOADED &nbsp;◈&nbsp; WALLETS_TRACKED: 14,173 &nbsp;◈&nbsp; ACCURACY: 98.4% &nbsp;◈&nbsp; UPLINK: ESTABLISHED &nbsp;◈&nbsp; PHASE_1: AWAKENING — 85% &nbsp;◈&nbsp; BUY $SYNX ON PUMP.FUN &nbsp;◈&nbsp;
+    ◈ SYNAPSE_X NEURAL CORE ONLINE &nbsp;◈&nbsp; $SYNX SIGNAL BREACH ACTIVE &nbsp;◈&nbsp; AI_ENGINE V8.5 LOCKED &amp; LOADED &nbsp;◈&nbsp; WALLETS_TRACKED: 14,173 &nbsp;◈&nbsp; ACCURACY: 98.4% &nbsp;◈&nbsp; UPLINK: ESTABLISHED &nbsp;◈&nbsp; PHASE_1: AWAKENING — 85% &nbsp;◈&nbsp; BUY $SYNX ON PUMP.FUN &nbsp;◈&nbsp;
+  </div>
+</div>
+
+<!-- ══ HUD BAR ══ -->
+<div class="hud">
+  <div class="hud-l">CPU: 24% &nbsp;|&nbsp; MEM: STABLE &nbsp;|&nbsp; SYNC: ESTABLISHED</div>
+  <div id="hud-clock" class="hud-c">00:00:00:00</div>
+  <div class="hud-r">
+    <span>UPTIME: 104:12:03</span>
+    <div class="lang-wrap">
+      <span class="{{ 'on' if current_lang == 'EN' else '' }}" onclick="changeLang('EN')">EN</span>
+      <span class="{{ 'on' if current_lang == 'RU' else '' }}" onclick="changeLang('RU')">RU</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HERO BAR ══ -->
+<div class="hero-bar">
+  <div class="glitch-stripe"></div>
+  <div class="logo-group">
+    <div class="logo-mark">
+      <div class="logo-mark-inner">SX</div>
+    </div>
+    <div class="logo-text-group">
+      <div class="logo-main">SYNAPSE X</div>
+      <div class="logo-sub">// SIGNAL BREACH // AI TRADING CORE //</div>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div class="hstat">
+      <div class="hstat-val" style="color:var(--acid)">14,173</div>
+      <div class="hstat-lbl">WALLETS TRACKED</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" style="color:var(--ice)">98.4%</div>
+      <div class="hstat-lbl">NEURAL ACCURACY</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" style="color:var(--volt)">12ms</div>
+      <div class="hstat-lbl">NET LATENCY</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" style="color:var(--hot)">LIVE</div>
+      <div class="hstat-lbl">CORE STATUS</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN LAYOUT ══ -->
+<div class="layout">
+
+  <!-- ── LEFT PANEL ── -->
+  <aside class="col-l">
+
+    <!-- ENTER TERMINAL -->
+    <div class="block" style="padding:14px 16px;">
+      <!-- Показываем если авторизован -->
+      <div id="auth-logged-in" style="display:none; margin-bottom:8px;">
+        <div class="auth-badge">
+          <div class="auth-badge-dot"></div>
+          <span class="auth-badge-name" id="auth-user-name">USER</span>
+          <a href="/logout" style="color:var(--t3);font-family:var(--fm);font-size:8px;letter-spacing:1px;text-decoration:none;">✕ EXIT</a>
+        </div>
+        <a href="/terminal" class="btn-terminal" style="margin-bottom:0;">
+          ❯ ENTER_TERMINAL
+          <span class="btn-terminal-label">NEURAL TRADING INTERFACE</span>
+        </a>
+      </div>
+
+      <!-- Показываем если НЕ авторизован -->
+      <div id="auth-logged-out" style="margin-bottom:10px;">
+        <a href="/login" class="btn-register" style="margin-bottom:6px;">
+          ❯ REGISTER / LOGIN
+          <span class="btn-register-label">GOOGLE ACCOUNT REQUIRED</span>
+        </a>
+        <div class="auth-divider">
+          <div class="auth-divider-line"></div>
+          <div class="auth-divider-text">OR</div>
+          <div class="auth-divider-line"></div>
+        </div>
+        <a href="/login" class="btn-login-small">SIGN IN — EXISTING USER</a>
+      </div>
+      <a href="https://pump.fun/coin/f6oBCUbhoXR7xTDvCh2THGx95JmAZ4zYLC5TiGGpump"
+         target="_blank" class="btn-buy" style="margin-bottom:10px;">
+        <span>🚀 BUY $SYNX</span>
+      </a>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <a href="https://x.com/SynapseX_AI" target="_blank" class="btn-social">𝕏 TWITTER</a>
+        <a href="https://t.me/SynapseX_AI"  target="_blank" class="btn-social">✈ TELEGRAM</a>
+      </div>
+    </div>
+
+    <!-- NEURAL STREAM -->
+    <div class="block-head" style="padding:10px 16px 0;flex-shrink:0;">
+      <div class="block-title">NEURAL_STREAM</div>
+      <div style="font-family:var(--fm);font-size:7px;color:var(--hot);letter-spacing:2px;animation:blink 1s infinite;">● LIVE</div>
+    </div>
+    <!-- LIVE PRICES TOP-5 -->
+    <div class="block" style="padding:12px 16px;">
+      <div class="block-head" style="margin-bottom:10px;">
+        <div class="block-title">LIVE MARKET</div>
+        <span style="font-family:var(--fm);font-size:7px;color:var(--hot);letter-spacing:2px;animation:blink 1s infinite;">● LIVE</span>
+      </div>
+      <div id="live-prices" style="display:flex;flex-direction:column;gap:5px;">
+        <div class="price-row-skeleton"></div>
+        <div class="price-row-skeleton"></div>
+        <div class="price-row-skeleton"></div>
+        <div class="price-row-skeleton"></div>
+        <div class="price-row-skeleton"></div>
+      </div>
+    </div>
+
+    <!-- STATS: сигналы сегодня + последний скринер -->
+    <div class="block" style="padding:12px 16px;">
+      <div class="block-head" style="margin-bottom:10px;">
+        <div class="block-title">SYSTEM STATUS</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div class="live-stat-card">
+          <div class="live-stat-val" id="idx-signals-today">—</div>
+          <div class="live-stat-lbl">СИГНАЛОВ<br>СЕГОДНЯ</div>
+        </div>
+        <div class="live-stat-card">
+          <div class="live-stat-val" id="idx-users-online">—</div>
+          <div class="live-stat-lbl">ОНЛАЙН<br>СЕЙЧАС</div>
+        </div>
+      </div>
+      <!-- Последний сигнал -->
+      <div id="idx-last-signal" style="padding:8px 10px;background:rgba(184,255,0,0.04);border:1px solid rgba(184,255,0,0.12);font-family:var(--fm);font-size:9px;line-height:1.8;color:var(--t2);">
+        <span style="color:var(--t3);">⟳ ЗАГРУЗКА...</span>
+      </div>
+    </div>
+
+    <div class="stream-wrap">
+      <div id="neural-stream"></div>
+    </div>
+
+    <!-- UPLINK -->
+    <div class="uplink-wrap">
+      <div class="uplink-label">▶ SECURE_UPLINK — TELEGRAM RELAY</div>
+      <div class="uplink-row">
+        <span class="uplink-prompt">_</span>
+        <input id="transmission-input" type="text" class="uplink-input" placeholder="TRANSMIT MESSAGE...">
+      </div>
+    </div>
+
+    <!-- CONTRACT ADDRESS -->
+    <div class="ca-wrap">
+      <div style="font-family:var(--fm);font-size:7px;color:var(--t3);letter-spacing:2px;margin-bottom:5px;">CONTRACT_ADDRESS</div>
+      <div class="ca-box">
+        <span id="ca-text" class="ca-text">f6oBCUbhoXR7xTDvCh2THGx95JmAZ4zYLC5TiGGpump</span>
+        <button onclick="copyCA()" class="ca-copy">COPY</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── CENTER: NEURAL CORE ── -->
+  <main class="col-m">
+    <div class="core-wrap">
+      <!-- Radar rings -->
+      <div class="radar-ring" style="width:120px;height:120px;top:50%;left:50%;transform:translate(-50%,-50%);border-color:rgba(184,255,0,0.12);"></div>
+      <div class="radar-ring" style="width:240px;height:240px;top:50%;left:50%;transform:translate(-50%,-50%);border-color:rgba(184,255,0,0.07);"></div>
+      <div class="radar-ring" style="width:360px;height:360px;top:50%;left:50%;transform:translate(-50%,-50%);border-color:rgba(184,255,0,0.04);"></div>
+      <div class="radar-ring" style="width:480px;height:480px;top:50%;left:50%;transform:translate(-50%,-50%);border-color:rgba(123,0,255,0.04);"></div>
+
+      <div class="core-status">
+        <span class="core-dot"></span>
+        NEURAL CORE — ONLINE
+      </div>
+
+      <canvas id="core-canvas"></canvas>
+
+      <div class="core-stats">
+        <div class="cstat c1">
+          <div class="cstat-val">14,173</div>
+          <div class="cstat-lbl">WALLETS</div>
+        </div>
+        <div class="cstat c2">
+          <div class="cstat-val">98.4%</div>
+          <div class="cstat-lbl">ACCURACY</div>
+        </div>
+        <div class="cstat c3">
+          <div class="cstat-val">12ms</div>
+          <div class="cstat-lbl">LATENCY</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── RIGHT PANEL ── -->
+  <aside class="col-r">
+
+    <!-- ROADMAP -->
+    <div class="block" style="flex:1;overflow:hidden auto;padding:14px 16px;">
+      <div class="block-head" style="margin-bottom:14px;">
+        <div class="block-title">PROJECT_ROADMAP</div>
+      </div>
+      <div class="roadmap-list">
+
+        <div class="rm-item done">
+          <div class="rm-num">01</div>
+          <div class="rm-body">
+            <div class="rm-header">
+              <span class="rm-phase">GENESIS</span>
+              <span class="rm-tag done">DONE</span>
+            </div>
+            <div class="rm-desc">Token launch. Smart contract audit. Community bootstrap.</div>
+            <div class="rm-bar"><div class="rm-fill" style="width:100%"></div></div>
+          </div>
+        </div>
+
+        <div class="rm-item active">
+          <div class="rm-num">02</div>
+          <div class="rm-body">
+            <div class="rm-header">
+              <span class="rm-phase">AWAKENING</span>
+              <span class="rm-tag active">ACTIVE</span>
+            </div>
+            <div class="rm-desc">AI Core deployment. Neural terminal. Live signals.</div>
+            <div class="rm-bar"><div class="rm-fill" id="rm-fill-1" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div class="rm-item locked">
+          <div class="rm-num">03</div>
+          <div class="rm-body">
+            <div class="rm-header">
+              <span class="rm-phase">EXPANSION</span>
+              <span class="rm-tag locked">LOCKED</span>
+            </div>
+            <div class="rm-desc">Beta terminal. ML analytics engine. API access.</div>
+            <div class="rm-bar"><div class="rm-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div class="rm-item locked">
+          <div class="rm-num">04</div>
+          <div class="rm-body">
+            <div class="rm-header">
+              <span class="rm-phase">QUANTUM</span>
+              <span class="rm-tag locked">LOCKED</span>
+            </div>
+            <div class="rm-desc">Autonomous trading. DAO governance. Cross-chain.</div>
+            <div class="rm-bar"><div class="rm-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- DISTRIBUTION -->
+    <div class="block" style="flex-shrink:0;padding:14px 16px;">
+      <div class="block-head">
+        <div class="block-title">DISTRIBUTION_MATRIX</div>
+      </div>
+      <div class="dist-wrap">
+        <div class="dist-canvas-wrap">
+          <canvas id="dist-canvas" width="80" height="80"></canvas>
+        </div>
+        <div class="dist-legend">
+          <div class="dist-row">
+            <div class="dist-dot" style="background:var(--acid)"></div>
+            <span class="dist-label">Community</span>
+            <span class="dist-pct" style="color:var(--acid)">97.5%</span>
+          </div>
+          <div class="dist-row">
+            <div class="dist-dot" style="background:var(--volt)"></div>
+            <span class="dist-label">Core Team</span>
+            <span class="dist-pct" style="color:var(--volt)">2.5%</span>
+          </div>
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--b1);">
+            <div style="font-family:var(--fm);font-size:7px;color:var(--t3);letter-spacing:1px;">TOTAL SUPPLY</div>
+            <div style="font-family:var(--fb);font-size:20px;color:var(--acid);text-shadow:0 0 10px var(--acid);line-height:1.2;">1,000,000,000</div>
+            <div style="font-family:var(--fm);font-size:7px;color:var(--t4);">$SYNX TOKENS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<script>
+/* ═══════════════════════════════════
+   NEURAL CORE CANVAS
+   ═══════════════════════════════════ */
+const canvas  = document.getElementById('core-canvas');
+const ctx     = canvas.getContext('2d');
+let nodes     = [];
+const N_COUNT = 500;
+const N_RAD   = 190;
+let mouseX = 0, mouseY = 0;
+
+function initCore() {
+  canvas.width  = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  nodes = Array.from({length: N_COUNT}, () => ({
+    theta: Math.random() * Math.PI * 2,
+    phi:   Math.acos((Math.random() * 2) - 1),
+    speed: 0.0015 + Math.random() * 0.003,
+    hue:   Math.random()
+  }));
+}
+
+function drawCore() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const t  = Date.now();
+  const breath = Math.sin(t * 0.0018) * 18;
+  const R = N_RAD + breath;
+
+  /* Core glow */
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+  g.addColorStop(0,   'rgba(123,0,255,0.22)');
+  g.addColorStop(0.4, 'rgba(255,23,68,0.08)');
+  g.addColorStop(0.8, 'rgba(184,255,0,0.04)');
+  g.addColorStop(1,   'transparent');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx, cy, R * 1.2, 0, Math.PI * 2); ctx.fill();
+
+  /* Inner ring pulse */
+  ctx.beginPath(); ctx.arc(cx, cy, R * 0.18, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(184,255,0,${0.3 + Math.sin(t * 0.003) * 0.2})`;
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(184,255,0,0.6)'; ctx.shadowBlur = 12;
+  ctx.stroke(); ctx.shadowBlur = 0;
+
+  /* Nodes */
+  const projected = nodes.map((n, i) => {
+    n.theta += n.speed;
+    const x = R * Math.sin(n.phi) * Math.cos(n.theta);
+    const y = R * Math.sin(n.phi) * Math.sin(n.theta);
+    const z = R * Math.cos(n.phi);
+    const sc = (z + R) / (2 * R) + 0.3;
+    return { px: cx + x * sc, py: cy + y * sc, z, sc, i, x, y };
+  });
+
+  /* Connections */
+  projected.forEach((a, i) => {
+    if (i % 8 !== 0) return;
+    projected.forEach((b, j) => {
+      if (j % 20 !== 0 || i === j) return;
+      const d = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+      if (d < 150) {
+        const alpha = 0.25 * (1 - d / 150) * a.sc;
+        ctx.beginPath(); ctx.moveTo(a.px, a.py); ctx.lineTo(b.px, b.py);
+        ctx.strokeStyle = `rgba(184,255,0,${alpha})`;
+        ctx.lineWidth = 0.4; ctx.stroke();
+      }
+    });
+  });
+
+  /* Dot rendering */
+  projected.forEach(({px, py, sc, i}) => {
+    const n = nodes[i];
+    let color, shadow;
+    if (n.hue < 0.45)      { color = '#b8ff00'; shadow = 'rgba(184,255,0,0.8)'; }
+    else if (n.hue < 0.75) { color = '#7b00ff'; shadow = 'rgba(123,0,255,0.8)'; }
+    else                   { color = '#00e5ff'; shadow = 'rgba(0,229,255,0.8)'; }
+
+    ctx.beginPath(); ctx.arc(px, py, 1.6 * sc, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.globalAlpha = sc * 0.9;
+    ctx.shadowColor = shadow; ctx.shadowBlur = 10 * sc;
+    ctx.fill();
+  });
+
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+  /* Mouse attractor effect */
+  const mDist = Math.hypot(mouseX - cx, mouseY - cy);
+  if (mDist < 200) {
+    ctx.beginPath(); ctx.arc(mouseX, mouseY, mDist * 0.3, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(184,255,0,${0.15 * (1 - mDist/200)})`;
+    ctx.lineWidth = 0.5; ctx.stroke();
+  }
+
+  requestAnimationFrame(drawCore);
+}
+
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = e.clientX - r.left;
+  mouseY = e.clientY - r.top;
+});
+
+/* ═══════════════════════════════════
+   DISTRIBUTION DONUT CHART
+   ═══════════════════════════════════ */
+function drawDist() {
+  const dc  = document.getElementById('dist-canvas');
+  const dct = dc.getContext('2d');
+  const cx = 40, cy = 40, r = 34, iR = 22;
+
+  const slices = [
+    { pct: 0.975, color: '#b8ff00', glow: 'rgba(184,255,0,0.6)' },
+    { pct: 0.025, color: '#7b00ff', glow: 'rgba(123,0,255,0.6)' },
+  ];
+
+  let startAngle = -Math.PI / 2;
+  slices.forEach(s => {
+    const end = startAngle + s.pct * Math.PI * 2;
+    dct.beginPath(); dct.moveTo(cx, cy);
+    dct.arc(cx, cy, r, startAngle, end);
+    dct.closePath();
+    dct.fillStyle = s.color;
+    dct.shadowColor = s.glow; dct.shadowBlur = 8;
+    dct.fill(); dct.shadowBlur = 0;
+    startAngle = end;
+  });
+
+  /* Cut inner hole */
+  dct.beginPath(); dct.arc(cx, cy, iR, 0, Math.PI * 2);
+  dct.fillStyle = '#070d1a'; dct.fill();
+
+  /* Center label */
+  dct.fillStyle = '#b8ff00'; dct.font = 'bold 11px Share Tech Mono';
+  dct.textAlign = 'center'; dct.textBaseline = 'middle';
+  dct.shadowColor = 'rgba(184,255,0,0.6)'; dct.shadowBlur = 6;
+  dct.fillText('$SYNX', cx, cy); dct.shadowBlur = 0;
+}
+
+/* ═══════════════════════════════════
+   MATRIX BACKGROUND
+   ═══════════════════════════════════ */
+function initMatrix() {
+  const bgC = document.getElementById('bg-canvas');
+  const bgX = bgC.getContext('2d');
+  bgC.width = window.innerWidth; bgC.height = window.innerHeight;
+  const cols = Math.floor(bgC.width / 22);
+  const drops = Array(cols).fill(0);
+  const chars = '01アウエオサシタチ∑∆∇∫≈◈⊕×÷';
+
+  (function draw() {
+    bgX.fillStyle = 'rgba(0,0,0,0.1)'; bgX.fillRect(0, 0, bgC.width, bgC.height);
+    drops.forEach((y, i) => {
+      const bright = Math.random() > 0.95;
+      bgX.fillStyle = bright ? `rgba(184,255,0,${0.5+Math.random()*0.5})` : `rgba(184,255,0,${0.04+Math.random()*0.08})`;
+      bgX.font = `${bright?'bold ':''} ${bright?14:11}px Share Tech Mono,monospace`;
+      bgX.fillText(chars[Math.floor(Math.random()*chars.length)], i*22, y*22);
+      if (y*22 > bgC.height && Math.random() > 0.978) drops[i] = 0;
+      else drops[i]++;
+    });
+    setTimeout(draw, 70);
+  })();
+}
+
+/* ═══════════════════════════════════
+   NEURAL STREAM
+   ═══════════════════════════════════ */
+const MSGS = [
+  { t:'',     m:'[SCANNING_MEMPOOL] ................. OK' },
+  { t:'warn', m:'[WALLET_ANOMALY_DETECTED] addr:0x7f3...' },
+  { t:'',     m:'[QUANTUM_ENCRYPT_LAYER] ............. ACTIVE' },
+  { t:'sys',  m:'[AI_CORE_SYNC] v8.5 ................. 100%' },
+  { t:'alert',m:'[HIGH_VOLUME_ALERT] BTC +23% in 4h' },
+  { t:'',     m:'[NEURAL_ACCURACY] calibrated ....... 98.4%' },
+  { t:'warn', m:'[SMART_MONEY_FLOW] detected x12 wallets' },
+  { t:'',     m:'[FIREWALL_BYPASS] ................... CLEAN' },
+  { t:'sys',  m:'[TARGET_ACQUIRED] SOL-USDT entry zone' },
+  { t:'alert',m:'[LIQUIDATION_MAP] $48M at 68200' },
+  { t:'',     m:'[SIGNAL_BREACH] confirmed ........... GO' },
+  { t:'sys',  m:'[UPLINK_RELAY] Telegram ............. LIVE' },
+];
+const streamBox = document.getElementById('neural-stream');
+
+function addLog() {
+  const entry = MSGS[Math.floor(Math.random() * MSGS.length)];
+  const div = document.createElement('div');
+  div.className = `log-entry${entry.t ? ' ' + entry.t : ''}`;
+  div.textContent = '> ' + entry.m;
+  streamBox.appendChild(div);
+  while (streamBox.children.length > 18) streamBox.removeChild(streamBox.firstChild);
+}
+
+/* ═══════════════════════════════════
+   UPLINK / TELEGRAM
+   ═══════════════════════════════════ */
+async function sendUplink(text) {
+  try {
+    const r = await fetch('/send_uplink', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text}) });
+    return r.ok;
+  } catch(e) { return false; }
+}
+
+const transInput = document.getElementById('transmission-input');
+transInput.addEventListener('keypress', async e => {
+  if (e.key === 'Enter' && transInput.value.trim()) {
+    const msg = transInput.value;
+    transInput.disabled = true; transInput.value = '[ENCRYPTING...]';
+    const ok = await sendUplink(msg);
+    transInput.value = ok ? '[UPLINK_ESTABLISHED]' : '[CONNECTION_ERROR]';
+    setTimeout(() => { transInput.value = ok ? '' : msg; transInput.disabled = false; }, 2000);
+  }
+});
+
+/* ═══════════════════════════════════
+   ROADMAP PROGRESS ANIMATION
+   ═══════════════════════════════════ */
+function animRoadmap() {
+  const bar = document.getElementById('rm-fill-1');
+  if (bar) {
+    let w = 0;
+    const iv = setInterval(() => {
+      w += 1; bar.style.width = w + '%';
+      if (w >= 85) clearInterval(iv);
+    }, 18);
+  }
+}
+
+/* ═══════════════════════════════════
+   CLOCK
+   ═══════════════════════════════════ */
+function updateClock() {
+  const n = new Date();
+  document.getElementById('hud-clock').textContent =
+    String(n.getHours()).padStart(2,'0') + ':' +
+    String(n.getMinutes()).padStart(2,'0') + ':' +
+    String(n.getSeconds()).padStart(2,'0') + ':' +
+    String(n.getMilliseconds()).slice(0,2).padStart(2,'0');
+}
+
+/* ═══════════════════════════════════
+   UTILS
+   ═══════════════════════════════════ */
+function copyCA() {
+  navigator.clipboard.writeText('f6oBCUbhoXR7xTDvCh2THGx95JmAZ4zYLC5TiGGpump');
+  const btn = document.querySelector('.ca-copy');
+  btn.textContent = 'COPIED!'; btn.style.color = 'var(--acid)'; btn.style.borderColor = 'var(--acid)';
+  setTimeout(() => { btn.textContent = 'COPY'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+}
+
+async function changeLang(l) { await fetch('/set_lang/' + l); window.location.reload(); }
+
+/* ═══════════════════════════════════
+   BOOT SEQUENCE
+   ═══════════════════════════════════ */
+window.onresize = () => { initCore(); initMatrix(); };
+
+window.onload = () => {
+  initCore();
+  drawCore();
+  initMatrix();
+  drawDist();
+  setInterval(addLog, 1100);
+  setInterval(updateClock, 50);
+  setTimeout(animRoadmap, 600);
+  // Staggered boot logs
+  ['[BOOT] SYNAPSE_X v8.5 ................. OK',
+   '[INIT] Neural core loading ........... OK',
+   '[INIT] Matrix scanner ................ ONLINE',
+  ].forEach((m, i) => setTimeout(() => {
+    const d = document.createElement('div');
+    d.className = 'log-entry sys'; d.textContent = '> ' + m;
+    streamBox.appendChild(d);
+  }, i * 400));
+};
+
+// ── Проверяем авторизацию через сессию ──────────────────────────
+(async function() {
+  try {
+    const r = await fetch('/auth/status');
+    const d = await r.json();
+    if (d.logged_in) {
+      document.getElementById('auth-logged-in').style.display  = 'block';
+      document.getElementById('auth-logged-out').style.display = 'none';
+      const nameEl = document.getElementById('auth-user-name');
+      if (nameEl) nameEl.textContent = d.name || d.email || 'USER';
+    } else {
+      document.getElementById('auth-logged-in').style.display  = 'none';
+      document.getElementById('auth-logged-out').style.display = 'block';
+    }
+  } catch(e) {
+    // fallback — показываем кнопки входа
+    document.getElementById('auth-logged-in').style.display  = 'none';
+    document.getElementById('auth-logged-out').style.display = 'block';
+  }
+})();
+
+// ── LIVE DATA для главной страницы ───────────────────────────────────────
+const TOP5 = ['BTC-USDT','ETH-USDT','SOL-USDT','BNB-USDT','XRP-USDT'];
+
+async function loadLivePrices() {
+  try {
+    const syms = TOP5.join(',');
+    const res  = await fetch('/api/prices?symbols=' + syms, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const container = document.getElementById('live-prices');
+    if (!container) return;
+    let html = '';
+    TOP5.forEach(sym => {
+      const d = data[sym];
+      if (!d || !d.price) return;
+      const price = parseFloat(d.price);
+      const chg   = parseFloat(d.change_24h || 0);
+      const chgCls  = chg >= 0 ? 'up' : 'dn';
+      const chgSign = chg >= 0 ? '+' : '';
+      const symShort = sym.replace('-USDT','');
+      const priceStr = price >= 1000 ? price.toLocaleString('en', {maximumFractionDigits:1})
+                     : price >= 1    ? price.toFixed(3)
+                     : price.toFixed(5);
+      html += `<div class="price-row">
+        <span class="price-sym">${symShort}</span>
+        <span class="price-val">$${priceStr}</span>
+        <span class="price-chg ${chgCls}">${chgSign}${chg.toFixed(2)}%</span>
+      </div>`;
+    });
+    if (html) container.innerHTML = html;
+  } catch(e) { console.warn('prices:', e.message); }
+}
+
+async function loadIndexStats() {
+  // Сигналы за сегодня + онлайн
+  try {
+    const [feedRes, onlineRes] = await Promise.all([
+      fetch('/api/signals/feed'),
+      fetch('/api/public/stats').catch(() => null)
+    ]);
+
+    // Feed — последний сигнал
+    if (feedRes.ok) {
+      const feed = await feedRes.json();
+      const signals = feed.signals || feed;
+      const el = document.getElementById('idx-signals-today');
+      if (el && Array.isArray(signals)) {
+        el.textContent = signals.length;
+        // Последний сигнал
+        const last = signals[0];
+        const lastEl = document.getElementById('idx-last-signal');
+        if (lastEl && last) {
+          const dir = last.direction || 'LONG';
+          const col = dir === 'LONG' ? '#00ff64' : '#ff1e50';
+          lastEl.innerHTML = `
+            <span style="color:var(--t3);letter-spacing:2px;">ПОСЛЕДНИЙ СИГНАЛ</span><br>
+            <span style="color:${col};font-weight:700;">${dir}</span>
+            <span style="color:var(--t2)"> ${last.asset || last.symbol || '—'}</span>
+            <span style="color:var(--t3);float:right">${last.time_ago || ''}</span>`;
+        }
+      }
+    }
+
+    // Online + public stats
+    if (onlineRes && onlineRes.ok) {
+      const onl = await onlineRes.json();
+      const onlEl = document.getElementById('idx-users-online');
+      if (onlEl) onlEl.textContent = onl.online || onl.count || 0;
+      const sigEl = document.getElementById('idx-signals-today');
+      if (sigEl && onl.signals_today !== undefined) sigEl.textContent = onl.signals_today;
+      if (onl.last_signal) {
+        const lastEl = document.getElementById('idx-last-signal');
+        if (lastEl) {
+          const s   = onl.last_signal;
+          const col = s.direction === 'LONG' ? '#00ff64' : '#ff1e50';
+          lastEl.innerHTML = '<span style="color:' + col + ';font-weight:700;">' + s.direction + '</span>'
+            + ' <span style="color:rgba(240,244,255,0.8);">' + (s.asset||'').replace('-USDT','') + '</span>';
+        }
+      }
+    }
+  } catch(e) { console.warn('stats:', e); }
+}
+
+// Запускаем
+loadLivePrices();
+loadIndexStats();
+setInterval(loadLivePrices, 15000);   // цены каждые 15с
+setInterval(loadIndexStats, 60000);   // статистика каждую минуту
+
+</script>
+</body>
+</html>

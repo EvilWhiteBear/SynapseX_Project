@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYNAPSE X // ADMIN ACCESS</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --void: #000; --deep: #03060f;
+  --volt: #7b00ff; --volt-g: rgba(123,0,255,0.2);
+  --acid: #b8ff00; --ice: #00e5ff; --hot: #ff1744;
+  --t1: #f0f4ff; --t2: rgba(240,244,255,0.55); --t3: rgba(240,244,255,0.28);
+}
+html, body {
+  width: 100vw; height: 100vh; background: var(--void);
+  color: var(--t1); font-family: 'Barlow Condensed', sans-serif;
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  cursor: crosshair;
+}
+canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.2; pointer-events: none; }
+.grid-bg {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background-image: linear-gradient(rgba(123,0,255,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(123,0,255,0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+.heat {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(123,0,255,0.15) 0%, transparent 70%);
+}
+.scanlines {
+  position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+}
+.wrap {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  animation: fadeUp 0.6s ease both;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+.logo-block { text-align: center; margin-bottom: 28px; }
+.logo-title {
+  font-family: 'Bebas Neue'; font-size: 34px; letter-spacing: 6px;
+  background: linear-gradient(135deg, var(--volt) 0%, var(--ice) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.logo-sub { font-family: 'Share Tech Mono'; font-size: 9px; color: var(--t3); letter-spacing: 4px; margin-top: 4px; }
+
+.card {
+  width: 400px;
+  background: rgba(3,6,15,0.95);
+  border: 1px solid rgba(123,0,255,0.35);
+  box-shadow: 0 0 50px rgba(123,0,255,0.1), 0 0 100px rgba(123,0,255,0.05), inset 0 0 30px rgba(0,0,0,0.5);
+  backdrop-filter: blur(20px);
+  padding: 36px 32px;
+  position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--volt), transparent);
+}
+.corner { position: absolute; width: 12px; height: 12px; opacity: 0.5; }
+.corner-tl { top:8px; left:8px; border-top:1px solid var(--volt); border-left:1px solid var(--volt); }
+.corner-tr { top:8px; right:8px; border-top:1px solid var(--volt); border-right:1px solid var(--volt); }
+.corner-bl { bottom:8px; left:8px; border-bottom:1px solid var(--volt); border-left:1px solid var(--volt); }
+.corner-br { bottom:8px; right:8px; border-bottom:1px solid var(--volt); border-right:1px solid var(--volt); }
+
+.card-title {
+  font-family: 'Share Tech Mono'; font-size: 10px; color: var(--volt);
+  letter-spacing: 3px; text-transform: uppercase; margin-bottom: 28px;
+  display: flex; align-items: center; gap: 10px;
+}
+.card-title::before { content: ''; width: 20px; height: 1px; background: var(--volt); opacity: 0.6; }
+
+.field { margin-bottom: 16px; }
+.field label {
+  display: block; font-family: 'Share Tech Mono'; font-size: 9px;
+  color: var(--t3); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;
+}
+.field input {
+  width: 100%; height: 48px;
+  background: rgba(123,0,255,0.06);
+  border: 1px solid rgba(123,0,255,0.25);
+  color: var(--t1);
+  font-family: 'Share Tech Mono'; font-size: 13px; letter-spacing: 2px;
+  padding: 0 16px; outline: none; transition: all 0.2s;
+}
+.field input:focus {
+  border-color: var(--volt);
+  box-shadow: 0 0 15px rgba(123,0,255,0.2);
+  background: rgba(123,0,255,0.1);
+}
+.field input::placeholder { color: var(--t3); letter-spacing: 1px; }
+
+.btn-submit {
+  width: 100%; height: 50px; margin-top: 8px;
+  background: linear-gradient(135deg, rgba(123,0,255,0.3), rgba(0,229,255,0.1));
+  border: 1px solid var(--volt);
+  color: var(--t1); font-family: 'Bebas Neue'; font-size: 16px; letter-spacing: 4px;
+  cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden;
+}
+.btn-submit::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(123,0,255,0.5), rgba(0,229,255,0.2));
+  opacity: 0; transition: opacity 0.25s;
+}
+.btn-submit:hover { box-shadow: 0 0 25px rgba(123,0,255,0.35); transform: translateY(-1px); }
+.btn-submit:hover::before { opacity: 1; }
+.btn-submit:active { transform: translateY(0); }
+
+.status-msg {
+  font-family: 'Share Tech Mono'; font-size: 10px; letter-spacing: 1px;
+  text-align: center; min-height: 18px; margin-top: 14px;
+  opacity: 0; transition: opacity 0.3s;
+}
+.status-msg.visible { opacity: 1; }
+.status-msg.error   { color: var(--hot); }
+.status-msg.success { color: var(--acid); }
+
+.back-link {
+  margin-top: 20px; font-family: 'Share Tech Mono'; font-size: 9px;
+  color: var(--t3); letter-spacing: 2px; text-align: center;
+  text-decoration: none; display: block; transition: color 0.2s;
+}
+.back-link:hover { color: var(--volt); }
+</style>
+{% if error %}
+<script>document.addEventListener('DOMContentLoaded', () => { var el=document.getElementById('status-msg'); if(el){el.className='status-msg visible error';el.textContent='{{ error }}';} });</script>
+{% endif %}
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div class="grid-bg"></div>
+<div class="heat"></div>
+<div class="scanlines"></div>
+
+<div class="wrap">
+  <div class="logo-block">
+    <div class="logo-title">SYNAPSE X</div>
+    <div class="logo-sub">ADMINISTRATOR ACCESS</div>
+  </div>
+
+  <div class="card">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="card-title">SECURE LOGIN</div>
+
+    <form method="POST" action="/admin/login" onsubmit="handleSubmit(event)">
+      <div class="field">
+        <label>Administrator ID</label>
+        <input type="text" name="login" placeholder="ENTER LOGIN" autocomplete="off" required>
+      </div>
+      <div class="field">
+        <label>Access Code</label>
+        <input type="password" name="password" placeholder="••••••••••" required>
+      </div>
+      <button type="submit" class="btn-submit">AUTHENTICATE</button>
+    </form>
+
+    {% if error %}
+    <div class="status-msg visible error">{{ error }}</div>
+    {% else %}
+    <div class="status-msg" id="status-msg"></div>
+    {% endif %}
+  </div>
+
+  <a href="/login" class="back-link">← RETURN TO MAIN LOGIN</a>
+</div>
+
+<script>
+function handleSubmit(e) {
+  const btn = e.target.querySelector('.btn-submit');
+  btn.textContent = 'VERIFYING...';
+  btn.disabled = true;
+}
+function setStatus(type, msg) {
+  const el = document.getElementById('status-msg');
+  if (el) { el.className = 'status-msg visible ' + type; el.textContent = msg; }
+}
+
+// Matrix background (violet variant)
+(function() {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const chars = 'ADMINSYNAPSEX01▓▒░█';
+  let cols, drops;
+  function resize() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    cols = Math.floor(canvas.width / 20); drops = Array(cols).fill(1);
+  }
+  resize(); window.addEventListener('resize', resize);
+  setInterval(() => {
+    ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.font = '11px "Share Tech Mono"';
+    drops.forEach((y, i) => {
+      ctx.fillStyle = Math.random() < 0.08 ? 'rgba(123,0,255,0.9)' : 'rgba(123,0,255,0.2)';
+      ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * 20, y * 18);
+      if (y * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    });
+  }, 55);
+})();
+</script>
+</body>
+</html>

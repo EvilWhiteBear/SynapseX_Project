@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="{{ "en" if current_lang == "EN" else "ru" }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYNAPSE X // PREMIUM</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --void:  #000000; --deep: #03060f; --s1: #070d1a; --s2: #0d1525;
+  --acid:  #b8ff00; --volt: #7b00ff; --ice:  #00e5ff;
+  --hot:   #ff1744; --gold: #ffb300; --mint: #00e5b0;
+  --t1: #f0f4ff; --t2: rgba(240,244,255,0.65); --t3: rgba(240,244,255,0.3); --t4: rgba(240,244,255,0.1);
+  --fb: 'Bebas Neue'; --fc: 'Barlow Condensed'; --fm: 'Share Tech Mono';
+}
+html, body { min-height: 100vh; background: var(--void); color: var(--t1); font-family: var(--fc), sans-serif; overflow-x: hidden; }
+
+canvas#bg { position: fixed; inset: 0; z-index: 0; opacity: 0.08; pointer-events: none; }
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(184,255,0,0.025) 1px,transparent 1px),
+                    linear-gradient(90deg,rgba(184,255,0,0.025) 1px,transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* ── Header ── */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 56px; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(184,255,0,0.1);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 40px;
+}
+.logo { font-family: var(--fb); font-size: 20px; letter-spacing: 4px;
+  background: linear-gradient(135deg, var(--acid), var(--ice)); -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent; background-clip: text; text-decoration: none; }
+.back-btn {
+  font-family: var(--fm); font-size: 10px; letter-spacing: 2px; color: var(--t3);
+  text-decoration: none; transition: color 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.back-btn:hover { color: var(--acid); }
+
+/* ── Page ── */
+.page { position: relative; z-index: 1; min-height: 100vh; padding: 100px 24px 60px; display: flex; flex-direction: column; align-items: center; }
+
+/* ── Hero ── */
+.hero { text-align: center; max-width: 600px; margin-bottom: 56px; }
+.hero-tag { font-family: var(--fm); font-size: 10px; letter-spacing: 4px; color: var(--gold);
+  margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.hero-tag::before, .hero-tag::after { content: ''; flex: 1; max-width: 40px; height: 1px; background: var(--gold); opacity: 0.4; }
+.hero-title { font-family: var(--fb); font-size: clamp(52px, 8vw, 80px); letter-spacing: 6px; line-height: 0.95;
+  background: linear-gradient(135deg, var(--gold) 0%, #fff7cc 50%, var(--gold) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-sub { font-size: 16px; font-weight: 600; letter-spacing: 1px; color: var(--t2); margin-top: 14px; line-height: 1.5; }
+
+/* Уже Premium */
+.already-premium {
+  max-width: 500px; width: 100%; text-align: center;
+  background: rgba(255,179,0,0.06); border: 1px solid rgba(255,179,0,0.25);
+  padding: 40px; margin-bottom: 32px;
+}
+.already-premium-icon { font-size: 48px; margin-bottom: 16px; }
+.already-premium-title { font-family: var(--fb); font-size: 28px; letter-spacing: 3px; color: var(--gold); margin-bottom: 8px; }
+.already-premium-sub { font-family: var(--fm); font-size: 11px; color: var(--t3); letter-spacing: 1px; margin-bottom: 24px; }
+.already-premium-expire { font-family: var(--fm); font-size: 10px; color: var(--t3); }
+
+/* ── Plans grid ── */
+.plans { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 680px; width: 100%; margin-bottom: 48px; }
+
+.plan-card {
+  background: rgba(7,13,26,0.9); border: 1px solid rgba(255,255,255,0.08);
+  padding: 32px 28px; position: relative; overflow: hidden;
+  transition: border-color 0.25s, transform 0.25s;
+  cursor: pointer;
+}
+.plan-card:hover { border-color: rgba(255,179,0,0.35); transform: translateY(-3px); }
+.plan-card.selected { border-color: var(--gold); background: rgba(255,179,0,0.05); }
+.plan-card.selected::after {
+  content: '✓ ВЫБРАНО'; position: absolute; top: 12px; right: 12px;
+  font-family: var(--fm); font-size: 8px; letter-spacing: 2px; color: var(--gold);
+  padding: 3px 8px; border: 1px solid rgba(255,179,0,0.4); background: rgba(255,179,0,0.1);
+}
+.plan-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: 0; transition: opacity 0.25s; }
+.plan-card:hover::before, .plan-card.selected::before { opacity: 1; }
+
+.plan-currency-flag { font-size: 24px; margin-bottom: 12px; }
+.plan-currency-name { font-family: var(--fm); font-size: 9px; letter-spacing: 3px; color: var(--t3); margin-bottom: 16px; }
+.plan-price { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 8px; }
+.plan-price-symbol { font-family: var(--fb); font-size: 24px; color: var(--gold); margin-bottom: 6px; }
+.plan-price-amount { font-family: var(--fb); font-size: 56px; color: var(--gold); line-height: 1; letter-spacing: -1px; }
+.plan-price-period { font-family: var(--fm); font-size: 10px; color: var(--t3); letter-spacing: 1px; margin-bottom: 8px; }
+.plan-desc { font-family: var(--fm); font-size: 9px; color: var(--t3); letter-spacing: 1px; }
+
+/* ── Features ── */
+.features { max-width: 680px; width: 100%; margin-bottom: 40px; }
+.features-title { font-family: var(--fm); font-size: 10px; color: var(--acid); letter-spacing: 3px;
+  margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.features-title::before { content: ''; width: 16px; height: 1px; background: var(--acid); opacity: 0.6; }
+.features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.feature-item {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: rgba(7,13,26,0.7); border: 1px solid rgba(255,255,255,0.06); padding: 16px;
+}
+.feature-icon { width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(184,255,0,0.08); border: 1px solid rgba(184,255,0,0.15); font-size: 16px; }
+.feature-title { font-size: 13px; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+.feature-desc { font-family: var(--fm); font-size: 9px; color: var(--t3); letter-spacing: 0.5px; line-height: 1.5; }
+
+/* ── Comparison ── */
+.comparison { max-width: 680px; width: 100%; margin-bottom: 48px; }
+.comp-table { width: 100%; border-collapse: collapse; }
+.comp-table th {
+  font-family: var(--fm); font-size: 9px; letter-spacing: 2px; color: var(--t3);
+  padding: 12px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.comp-table th:not(:first-child) { text-align: center; }
+.comp-table td {
+  padding: 13px 16px; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--t2);
+}
+.comp-table td:not(:first-child) { text-align: center; }
+.comp-table tr:hover td { background: rgba(255,255,255,0.02); }
+.comp-check { color: var(--acid); font-size: 16px; }
+.comp-cross { color: rgba(255,255,255,0.2); font-size: 14px; }
+.comp-gold  { color: var(--gold); font-family: var(--fm); font-size: 11px; }
+.comp-header-free { color: var(--t2); }
+.comp-header-prem { color: var(--gold); }
+
+/* ── CTA кнопка ── */
+.cta-wrap { max-width: 680px; width: 100%; }
+.cta-btn {
+  width: 100%; height: 60px;
+  background: linear-gradient(135deg, var(--gold) 0%, #ffcc40 50%, var(--gold) 100%);
+  border: none; color: #000; font-family: var(--fb); font-size: 20px; letter-spacing: 4px;
+  cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden;
+}
+.cta-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(255,179,0,0.4); }
+.cta-btn:active { transform: translateY(0); }
+.cta-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.cta-btn .spinner {
+  display: none; width: 20px; height: 20px; border: 2px solid rgba(0,0,0,0.3);
+  border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+.cta-btn.loading .btn-text { display: none; }
+.cta-btn.loading .spinner  { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.cta-meta { font-family: var(--fm); font-size: 9px; color: var(--t4); letter-spacing: 1px;
+  text-align: center; margin-top: 12px; line-height: 1.6; }
+.cta-meta a { color: var(--t3); text-decoration: underline; }
+
+/* Управление подпиской (уже Premium) */
+.manage-btn {
+  width: 100%; height: 52px;
+  background: rgba(255,179,0,0.08); border: 1px solid rgba(255,179,0,0.3);
+  color: var(--gold); font-family: var(--fm); font-size: 11px; letter-spacing: 3px;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+}
+.manage-btn:hover { background: rgba(255,179,0,0.15); }
+
+/* ── Флаш сообщения ── */
+.alert {
+  max-width: 680px; width: 100%; padding: 14px 20px; margin-bottom: 24px;
+  font-family: var(--fm); font-size: 11px; letter-spacing: 1px;
+  border: 1px solid; display: flex; align-items: center; gap: 12px;
+}
+.alert.success { background: rgba(184,255,0,0.06); border-color: rgba(184,255,0,0.2); color: var(--acid); }
+.alert.error   { background: rgba(255,23,68,0.07); border-color: rgba(255,23,68,0.2); color: var(--hot); }
+.alert.info    { background: rgba(255,179,0,0.07); border-color: rgba(255,179,0,0.2); color: var(--gold); }
+
+/* ── FAQ ── */
+.faq { max-width: 680px; width: 100%; margin-top: 48px; }
+.faq-title { font-family: var(--fm); font-size: 10px; color: var(--acid); letter-spacing: 3px;
+  margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.faq-title::before { content: ''; width: 16px; height: 1px; background: var(--acid); opacity: 0.6; }
+.faq-item { border-bottom: 1px solid rgba(255,255,255,0.06); }
+.faq-q {
+  padding: 16px 0; font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
+  cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  transition: color 0.2s; user-select: none;
+}
+.faq-q:hover { color: var(--gold); }
+.faq-q::after { content: '+'; font-family: var(--fm); font-size: 16px; color: var(--t3); transition: transform 0.25s; }
+.faq-item.open .faq-q::after { transform: rotate(45deg); }
+.faq-a { font-family: var(--fm); font-size: 11px; color: var(--t3); letter-spacing: 0.5px; line-height: 1.7;
+  max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s; }
+.faq-item.open .faq-a { max-height: 200px; padding-bottom: 16px; }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .plans { grid-template-columns: 1fr; }
+  .features-grid { grid-template-columns: 1fr; }
+  .header { padding: 0 20px; }
+}
+</style>
+</head>
+<body>
+<style>
+.ls-btn{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:4px 10px;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);text-decoration:none;}
+.ls-btn.active{border-color:rgba(184,255,0,0.4);color:#b8ff00;}
+</style>
+<div id="lang-switcher" style="position:fixed;top:16px;right:80px;z-index:1000;display:flex;gap:6px;">
+  <a href="/set_lang/RU?next=/premium" class="ls-btn{% if current_lang != 'EN' %} active{% endif %}">RU</a>
+  <a href="/set_lang/EN?next=/premium" class="ls-btn{% if current_lang == 'EN' %} active{% endif %}">EN</a>
+</div>
+
+<canvas id="bg"></canvas>
+<div class="grid-bg"></div>
+
+<!-- Header -->
+<header class="header">
+  <a href="/" class="logo">SYNAPSE X</a>
+  <a href="/terminal" class="back-btn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    В ТЕРМИНАЛ
+  </a>
+</header>
+
+<div class="page">
+
+  <!-- Alert (если есть flash) -->
+  <div id="alert-box" style="display:none;" class="alert">
+    <span id="alert-msg"></span>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-tag">★ PREMIUM ПОДПИСКА</div>
+    <div class="hero-title">SYNAPSE X<br>PREMIUM</div>
+    <div class="hero-sub" id="hero-sub">{% if current_lang == "EN" %}Up to 15 AI signals per day.<br>No limits. No compromises.{% else %}До 15 AI-сигналов в день.<br>Без ограничений. Без компромиссов.{% endif %}</div>
+  </div>
+
+  <!-- Уже Premium блок (скрыт по умолчанию) -->
+  <div class="already-premium" id="already-premium-block" style="display:none;">
+    <div class="already-premium-icon">★</div>
+    <div class="already-premium-title">{% if current_lang == "EN" %}YOU ALREADY HAVE PREMIUM{% else %}У ВАС УЖЕ PREMIUM{% endif %}</div>
+    <div class="already-premium-sub">{% if current_lang == "EN" %}Your subscription is active{% else %}Ваша подписка активна{% endif %}</div>
+    <div class="already-premium-expire" id="prem-expire"></div>
+  </div>
+
+  <!-- Выбор тарифа (валюта) -->
+  <div class="plans" id="plans-block">
+    {% if stripe_configured %}
+    <div class="plan-card selected" onclick="selectPlan('usd', this)">
+      <div class="plan-currency-flag">🇺🇸</div>
+      <div class="plan-currency-name">{% if current_lang == "EN" %}PAYMENT IN USD{% else %}ОПЛАТА В USD{% endif %}</div>
+      <div class="plan-price">
+        <div class="plan-price-symbol">$</div>
+        <div class="plan-price-amount">19.99</div>
+      </div>
+      <div class="plan-price-period">{% if current_lang == "EN" %}/ MONTH{% else %}/ МЕСЯЦ{% endif %}</div>
+      <div class="plan-desc">{% if current_lang == "EN" %}Visa / Mastercard / Apple Pay{% else %}Visa / Mastercard / Apple Pay{% endif %}</div>
+    </div>
+    {% endif %}
+    <div class="plan-card" onclick="selectPlan('eur', this)">
+      <div class="plan-currency-flag">🇪🇺</div>
+      <div class="plan-currency-name">{% if current_lang == "EN" %}PAYMENT IN EUR{% else %}ОПЛАТА В EUR{% endif %}</div>
+      <div class="plan-price">
+        <div class="plan-price-symbol">€</div>
+        <div class="plan-price-amount">19.99</div>
+      </div>
+      <div class="plan-price-period">{% if current_lang == "EN" %}/ MONTH{% else %}/ МЕСЯЦ{% endif %}</div>
+      <div class="plan-desc">{% if current_lang == "EN" %}Visa / Mastercard / SEPA{% else %}Visa / Mastercard / SEPA{% endif %}</div>
+    </div>
+    <div class="plan-card{% if not stripe_configured %} selected{% endif %}" onclick="selectPlan('crypto', this)">
+      <div class="plan-currency-flag" style="font-size:20px;">₿</div>
+      <div class="plan-currency-name">{% if current_lang == "EN" %}CRYPTO · USDT · BTC{% else %}CRYPTO · USDT · BTC{% endif %}</div>
+      <div class="plan-price">
+        <div class="plan-price-symbol">$</div>
+        <div class="plan-price-amount">19.99</div>
+      </div>
+      <div class="plan-price-period">{% if current_lang == "EN" %}/ MONTH{% else %}/ МЕСЯЦ{% endif %}</div>
+      <div class="plan-desc">{% if current_lang == "EN" %}USDT TRC20 · BTC · ETH · TON{% else %}USDT TRC20 · BTC · ETH · TON{% endif %}</div>
+    </div>
+  </div>
+
+  <!-- Что включено -->
+  <div class="features">
+    <div class="features-title">{% if current_lang == "EN" %}WHAT'S INCLUDED{% else %}ЧТО ВХОДИТ В PREMIUM{% endif %}</div>
+    <div class="features-grid">
+      <div class="feature-item">
+        <div class="feature-icon">⚡</div>
+        <div>
+          <div class="feature-title">{% if current_lang == "EN" %}15 SIGNALS / DAY{% else %}15 СИГНАЛОВ / ДЕНЬ{% endif %}</div>
+          <div class="feature-desc">{% if current_lang == "EN" %}AI analyzes the market and generates up to 15 trading signals daily{% else %}AI анализирует рынок и выдаёт до 15 торговых сигналов в сутки{% endif %}</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🎯</div>
+        <div>
+          <div class="feature-title">{% if current_lang == "EN" %}PRECISE AI ANALYSIS{% else %}ТОЧНЫЙ AI АНАЛИЗ{% endif %}</div>
+          <div class="feature-desc">Полный технический анализ: FVG, BOS, OB, мультитаймфреймный скоринг</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📊</div>
+        <div>
+          <div class="feature-title">{% if current_lang == "EN" %}TRADE JOURNAL{% else %}ТОРГОВЫЙ ЖУРНАЛ{% endif %}</div>
+          <div class="feature-desc">{% if current_lang == "EN" %}Automatic trade logging, equity curve, PnL statistics{% else %}Автоматическая запись сделок, equity curve, статистика PnL{% endif %}</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🔔</div>
+        <div>
+          <div class="feature-title">{% if current_lang == "EN" %}LIVE PRICES{% else %}LIVE ЦЕНЫ{% endif %}</div>
+          <div class="feature-desc">{% if current_lang == "EN" %}Real-time price streaming across all trading pairs{% else %}Стриминг цен в реальном времени по всем торговым парам{% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Сравнение планов -->
+  <div class="comparison">
+    <div class="features-title">{% if current_lang == "EN" %}PLAN COMPARISON{% else %}СРАВНЕНИЕ ТАРИФОВ{% endif %}</div>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>ФУНКЦИЯ</th>
+          <th class="comp-header-free">БЕСПЛАТНЫЙ</th>
+          <th class="comp-header-prem">★ PREMIUM</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{% if current_lang == "EN" %}AI signals per day{% else %}AI сигналов в день{% endif %}</td>
+          <td><span class="comp-gold">2</span></td>
+          <td><span class="comp-gold">15</span></td>
+        </tr>
+        <tr>
+          <td>{% if current_lang == "EN" %}Live prices{% else %}Live цены{% endif %}</td>
+          <td><span class="comp-check">✓</span></td>
+          <td><span class="comp-check">✓</span></td>
+        </tr>
+        <tr>
+          <td>{% if current_lang == "EN" %}Trade journal{% else %}Торговый журнал{% endif %}</td>
+          <td><span class="comp-check">✓</span></td>
+          <td><span class="comp-check">✓</span></td>
+        </tr>
+        <tr>
+          <td>{% if current_lang == "EN" %}TP/SL monitoring{% else %}TP/SL мониторинг{% endif %}</td>
+          <td><span class="comp-check">✓</span></td>
+          <td><span class="comp-check">✓</span></td>
+        </tr>
+        <tr>
+          <td>{% if current_lang == "EN" %}Priority AI analysis{% else %}Приоритетный AI анализ{% endif %}</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">✓</span></td>
+        </tr>
+        <tr>
+          <td>{% if current_lang == "EN" %}Support{% else %}Поддержка{% endif %}</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">✓</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-wrap" id="cta-block">
+    <button class="cta-btn" id="cta-btn" onclick="subscribe()">
+      <span class="btn-text">ОФОРМИТЬ PREMIUM — $19.99/МЕС</span>
+      <div class="spinner"></div>
+    </button>
+    <div class="cta-meta">
+      Оплата через Stripe · Безопасно · Отмена в любой момент<br>
+      Нажимая кнопку, вы соглашаетесь с <a href="#">условиями использования</a>
+    </div>
+  </div>
+
+  <!-- Управление подпиской (для Premium) -->
+  <div class="cta-wrap" id="manage-block" style="display:none;">
+    <button class="manage-btn" onclick="manageSubscription()">
+      УПРАВЛЕНИЕ ПОДПИСКОЙ / ОТМЕНА
+    </button>
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq">
+    <div class="faq-title">ЧАСТЫЕ ВОПРОСЫ</div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Как отменить подписку?</div>
+      <div class="faq-a">Нажмите «Управление подпиской» — откроется портал Stripe где можно отменить в любой момент. Подписка останется активной до конца оплаченного периода.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Когда сбрасывается лимит сигналов?</div>
+      <div class="faq-a">Лимит сбрасывается каждый день в 00:00 UTC. 15 сигналов в день означает что вы получаете свежие 15 каждые 24 часа.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">{% if current_lang == "EN" %}What payment methods are accepted?{% else %}Какие карты принимаются?{% endif %}</div>
+      <div class="faq-a">Visa, Mastercard, American Express, Discover. Также поддерживаются Apple Pay, Google Pay и SEPA при оплате в EUR.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">{% if current_lang == "EN" %}Does Premium activate immediately?{% else %}Активируется ли Premium сразу?{% endif %}</div>
+      <div class="faq-a">Да — как только оплата подтверждена Stripe, Premium активируется автоматически через webhook. Обычно это занимает несколько секунд.</div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+let _selectedCurrency = '{{ "usd" if stripe_configured else "crypto" }}';
+
+function selectPlan(currency, el) {
+  _selectedCurrency = currency;
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const isEN = document.documentElement.lang === 'en';
+  const labels = isEN
+    ? {usd: '$ GET PREMIUM — $19.99/MO', eur: '€ GET PREMIUM — €19.99/MO', crypto: '₿ PAY WITH CRYPTO — $19.99/MO'}
+    : {usd: '$ ОФОРМИТЬ PREMIUM — $19.99/МЕС', eur: '€ ОФОРМИТЬ PREMIUM — €19.99/МЕС', crypto: '₿ ОПЛАТИТЬ КРИПТОЙ — $19.99/МЕС'};
+  document.getElementById('cta-btn').querySelector('.btn-text').textContent = labels[currency] || 'ОФОРМИТЬ PREMIUM';
+}
+
+async function subscribe() {
+  const btn = document.getElementById('cta-btn');
+  btn.classList.add('loading'); btn.disabled = true;
+  try {
+    // Crypto оплата
+    if (_selectedCurrency === 'crypto') {
+      // Выбор монеты
+      const coins = {
+        'USDT TRC20': 'usdttrc20',
+        'USDT ERC20': 'usdterc20',
+        'BTC':        'btc',
+        'ETH':        'eth',
+        'TON':        'ton',
+        'BNB':        'bnb',
+      };
+      const coinNames = Object.keys(coins);
+      const chosen = coinNames[0]; // по умолчанию USDT TRC20
+      // Показываем выбор монеты
+      const modal = document.getElementById('crypto-modal');
+      if (modal) { modal.style.display = 'flex'; btn.classList.remove('loading'); btn.disabled = false; return; }
+      // Если нет модала — сразу создаём платёж USDT TRC20
+      const r = await fetch('/api/crypto/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currency: 'usdttrc20' })
+      });
+      const d = await r.json();
+      if (d.payment_url) {
+        window.location.href = d.payment_url;
+      } else if (d.error === 'NOT_LOGGED_IN') {
+        window.location.href = '/login?next=/premium';
+      } else {
+        showAlert(d.error || 'Ошибка при создании крипто-платежа', 'error');
+        btn.classList.remove('loading'); btn.disabled = false;
+      }
+      return;
+    }
+
+    // Stripe оплата (USD / EUR)
+    const r = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currency: _selectedCurrency })
+    });
+    const d = await r.json();
+    if (d.url) {
+      window.location.href = d.url;
+    } else if (d.error === 'NOT_LOGGED_IN') {
+      window.location.href = '/login?next=/premium';
+    } else {
+      showAlert(d.error || 'Ошибка при создании сессии оплаты', 'error');
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
+  } catch(e) {
+    showAlert('Ошибка подключения к серверу', 'error');
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+async function cryptoPay(currency) {
+  const modal = document.getElementById('crypto-modal');
+  if (modal) modal.style.display = 'none';
+  const btn = document.getElementById('cta-btn');
+  btn.classList.add('loading'); btn.disabled = true;
+  try {
+    const r = await fetch('/api/crypto/checkout', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({currency})
+    });
+    const d = await r.json();
+    if (d.payment_url) {
+      window.location.href = d.payment_url;
+    } else if (d.error === 'NOT_LOGGED_IN') {
+      window.location.href = '/login?next=/premium';
+    } else {
+      showAlert(d.error || 'Ошибка при создании крипто-платежа', 'error');
+    }
+  } catch(e) { showAlert('Ошибка подключения', 'error'); }
+  btn.classList.remove('loading'); btn.disabled = false;
+}
+
+async function manageSubscription() {
+  try {
+    const r = await fetch('/api/stripe/portal', { method: 'POST' });
+    const d = await r.json();
+    if (d.url) window.location.href = d.url;
+    else showAlert(d.error || 'Ошибка', 'error');
+  } catch(e) { showAlert('Ошибка подключения', 'error'); }
+}
+
+function showAlert(msg, type = 'info') {
+  const box = document.getElementById('alert-box');
+  box.className = `alert ${type}`;
+  document.getElementById('alert-msg').textContent = msg;
+  box.style.display = 'flex';
+  setTimeout(() => { box.style.display = 'none'; }, 5000);
+}
+
+function toggleFaq(el) {
+  el.closest('.faq-item').classList.toggle('open');
+}
+
+// Проверяем статус пользователя
+async function checkStatus() {
+  try {
+    const r = await fetch('/auth/status');
+    const d = await r.json();
+
+    // URL параметры
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === '1') {
+      showAlert('✓ Оплата прошла успешно! Premium активирован.', 'success');
+    } else if (params.get('cancelled') === '1') {
+      showAlert('Оплата отменена. Вы можете попробовать снова.', 'info');
+    }
+
+    if (!d.logged_in) return;
+
+    // Проверяем Premium статус
+    const r2 = await fetch('/api/subscription/status');
+    if (r2.ok) {
+      const sub = await r2.json();
+      if (sub.is_premium) {
+        document.getElementById('already-premium-block').style.display = 'block';
+        document.getElementById('plans-block').style.display = 'none';
+        const ctaEl = document.getElementById('cta-block');
+        const mngEl = document.getElementById('manage-block');
+        if (ctaEl) ctaEl.style.display = 'none';
+        if (mngEl) mngEl.style.display = 'block';
+        if (sub.current_period_end) {
+          const d = new Date(sub.current_period_end);
+          document.getElementById('prem-expire').textContent =
+            'Активно до: ' + d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
+        }
+        document.getElementById('hero-sub').textContent = 'Ваша Premium подписка активна. Наслаждайтесь 15 сигналами в день.';
+      }
+    }
+  } catch(e) { console.error(e); }
+}
+
+checkStatus();
+
+// Matrix BG
+(function() {
+  const c = document.getElementById('bg'), ctx = c.getContext('2d');
+  const chars = '01SYNXBTCETH★$€▓░';
+  let cols, drops;
+  function resize() { c.width = window.innerWidth; c.height = window.innerHeight; cols = Math.floor(c.width/22); drops = Array(cols).fill(1); }
+  resize(); window.addEventListener('resize', resize);
+  setInterval(() => {
+    ctx.fillStyle = 'rgba(0,0,0,0.05)'; ctx.fillRect(0,0,c.width,c.height);
+    ctx.font = '11px "Share Tech Mono"';
+    drops.forEach((y,i) => {
+      ctx.fillStyle = Math.random()<0.05 ? 'rgba(255,179,0,0.6)' : 'rgba(255,179,0,0.07)';
+      ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*22, y*18);
+      if (y*18 > c.height && Math.random() > 0.975) drops[i] = 0; drops[i]++;
+    });
+  }, 60);
+})();
+</script>
+<!-- Crypto coin selector modal -->
+<div id="crypto-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#070d1a;border:1px solid rgba(184,255,0,0.2);padding:32px;max-width:400px;width:90%;border-radius:12px;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:#b8ff00;letter-spacing:2px;margin-bottom:20px;text-align:center;">{% if current_lang == "EN" %}SELECT COIN{% else %}ВЫБЕРИТЕ МОНЕТУ{% endif %}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+      <button onclick="cryptoPay('usdttrc20')" class="coin-btn">USDT TRC20<br><span style="font-size:10px;opacity:.6;">Tron · Быстро</span></button>
+      <button onclick="cryptoPay('usdterc20')" class="coin-btn">USDT ERC20<br><span style="font-size:10px;opacity:.6;">Ethereum</span></button>
+      <button onclick="cryptoPay('btc')" class="coin-btn">Bitcoin BTC<br><span style="font-size:10px;opacity:.6;">≈$19.99</span></button>
+      <button onclick="cryptoPay('eth')" class="coin-btn">Ethereum ETH<br><span style="font-size:10px;opacity:.6;">≈$19.99</span></button>
+      <button onclick="cryptoPay('ton')" class="coin-btn">TON<br><span style="font-size:10px;opacity:.6;">Telegram</span></button>
+      <button onclick="cryptoPay('bnb')" class="coin-btn">BNB<br><span style="font-size:10px;opacity:.6;">BEP20</span></button>
+    </div>
+    <button onclick="document.getElementById('crypto-modal').style.display='none'" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);cursor:pointer;font-size:11px;letter-spacing:1px;">ОТМЕНА</button>
+  </div>
+</div>
+<style>
+.coin-btn{background:rgba(184,255,0,0.05);border:1px solid rgba(184,255,0,0.2);color:#b8ff00;padding:12px 8px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;transition:background .2s;border-radius:6px;}
+.coin-btn:hover{background:rgba(184,255,0,0.15);}
+</style>
+</body>
+</html>

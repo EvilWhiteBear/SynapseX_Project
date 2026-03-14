@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYNAPSE X // ACCESS GATE</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono:wght@400&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --void:  #000000;
+  --deep:  #03060f;
+  --acid:  #b8ff00;
+  --volt:  #7b00ff;
+  --ice:   #00e5ff;
+  --hot:   #ff1744;
+  --t1:    #f0f4ff;
+  --t2:    rgba(240,244,255,0.55);
+  --t3:    rgba(240,244,255,0.28);
+  --fb:    'Bebas Neue', sans-serif;
+  --fc:    'Barlow Condensed', sans-serif;
+  --fm:    'Share Tech Mono', monospace;
+}
+
+html, body {
+  width: 100vw; height: 100vh;
+  background: var(--void);
+  color: var(--t1);
+  font-family: var(--fc);
+  overflow: hidden;
+  cursor: crosshair;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Background ── */
+#bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.35; }
+
+.grid-bg {
+  position: fixed; inset: 0; z-index: 1;
+  background-image:
+    linear-gradient(rgba(184,255,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184,255,0,0.03) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+}
+
+.heat {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(123,0,255,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 40% at 10% 90%, rgba(184,255,0,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 25% 35% at 90% 10%, rgba(0,229,255,0.05) 0%, transparent 60%);
+}
+
+.scanlines {
+  position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px
+  );
+}
+
+/* ── Card ── */
+.login-wrap {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0;
+  animation: fadeIn 0.8s ease both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Logo block ── */
+.logo-block {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logo-hex {
+  width: 72px; height: 72px;
+  margin: 0 auto 16px;
+  position: relative;
+}
+
+.logo-hex svg { width: 100%; height: 100%; filter: drop-shadow(0 0 16px var(--acid)); }
+
+.logo-title {
+  font-family: var(--fb);
+  font-size: 38px;
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, var(--acid) 0%, var(--ice) 60%, var(--volt) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.logo-sub {
+  font-family: var(--fm);
+  font-size: 10px;
+  color: var(--t3);
+  letter-spacing: 4px;
+  margin-top: 6px;
+}
+
+/* ── Card body ── */
+.card {
+  width: 420px;
+  background: rgba(3,6,15,0.92);
+  border: 1px solid rgba(184,255,0,0.2);
+  box-shadow:
+    0 0 40px rgba(184,255,0,0.06),
+    0 0 80px rgba(123,0,255,0.08),
+    inset 0 0 40px rgba(0,0,0,0.5);
+  backdrop-filter: blur(20px);
+  padding: 36px 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--acid), transparent);
+  opacity: 0.8;
+}
+
+.card-title {
+  font-family: var(--fm);
+  font-size: 10px;
+  color: var(--acid);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.card-title::before {
+  content: '';
+  width: 20px; height: 1px;
+  background: var(--acid);
+  opacity: 0.6;
+}
+
+/* ── Google button ── */
+.btn-google {
+  width: 100%;
+  height: 52px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--t1);
+  font-family: var(--fc);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-google::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(184,255,0,0.08), rgba(0,229,255,0.05));
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.btn-google:hover {
+  border-color: var(--acid);
+  box-shadow: 0 0 20px rgba(184,255,0,0.15);
+  transform: translateY(-1px);
+}
+
+.btn-google:hover::before { opacity: 1; }
+
+.btn-google:active { transform: translateY(0); }
+
+.google-icon {
+  width: 20px; height: 20px; flex-shrink: 0;
+}
+
+/* ── Divider ── */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 24px 0;
+}
+
+.divider-line {
+  flex: 1; height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+.divider-text {
+  font-family: var(--fm);
+  font-size: 9px;
+  color: var(--t3);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+/* ── Admin link ── */
+.admin-link {
+  width: 100%;
+  height: 42px;
+  background: transparent;
+  border: 1px solid rgba(123,0,255,0.3);
+  color: rgba(123,0,255,0.7);
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  text-decoration: none;
+  transition: all 0.25s;
+}
+
+.admin-link:hover {
+  border-color: var(--volt);
+  color: var(--volt);
+  box-shadow: 0 0 15px rgba(123,0,255,0.2);
+}
+
+/* ── Status message ── */
+.status-msg {
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-align: center;
+  min-height: 18px;
+  margin-top: 16px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.status-msg.visible { opacity: 1; }
+.status-msg.error   { color: var(--hot); }
+.status-msg.loading { color: var(--acid); }
+.status-msg.success { color: var(--ice); }
+
+/* ── Footer note ── */
+.footer-note {
+  margin-top: 24px;
+  font-family: var(--fm);
+  font-size: 9px;
+  color: var(--t3);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+/* ── Corner decorations ── */
+.corner {
+  position: absolute;
+  width: 12px; height: 12px;
+  opacity: 0.5;
+}
+
+.corner-tl { top: 8px;  left: 8px;  border-top: 1px solid var(--acid); border-left: 1px solid var(--acid); }
+.corner-tr { top: 8px;  right: 8px; border-top: 1px solid var(--acid); border-right: 1px solid var(--acid); }
+.corner-bl { bottom: 8px; left: 8px;  border-bottom: 1px solid var(--acid); border-left: 1px solid var(--acid); }
+.corner-br { bottom: 8px; right: 8px; border-bottom: 1px solid var(--acid); border-right: 1px solid var(--acid); }
+
+/* ── Pulse animation ── */
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 40px rgba(184,255,0,0.06), 0 0 80px rgba(123,0,255,0.08), inset 0 0 40px rgba(0,0,0,0.5); }
+  50%       { box-shadow: 0 0 60px rgba(184,255,0,0.10), 0 0 100px rgba(123,0,255,0.12), inset 0 0 40px rgba(0,0,0,0.5); }
+}
+.card { animation: pulse-border 4s ease-in-out infinite; }
+
+/* ── Loading spinner ── */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(184,255,0,0.2);
+  border-top: 2px solid var(--acid);
+  border-radius: 50%;
+  display: none;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-google.loading .spinner { display: block; }
+.btn-google.loading .btn-text { opacity: 0.5; }
+</style>
+</head>
+<body>
+
+<canvas id="matrix-canvas"></canvas>
+<div class="grid-bg"></div>
+<div class="heat"></div>
+<div class="scanlines"></div>
+
+<div class="login-wrap">
+
+  <!-- Logo -->
+  <div class="logo-block">
+    <div class="logo-hex">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="50,5 93,27.5 93,72.5 50,95 7,72.5 7,27.5"
+                 fill="none" stroke="#b8ff00" stroke-width="2" opacity="0.9"/>
+        <polygon points="50,15 83,32.5 83,67.5 50,85 17,67.5 17,32.5"
+                 fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.4"/>
+        <text x="50" y="57" text-anchor="middle" font-family="'Bebas Neue'" font-size="22"
+              fill="#b8ff00" opacity="0.95">SX</text>
+        <circle cx="50" cy="50" r="3" fill="#b8ff00" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="logo-title">SYNAPSE X</div>
+    <div class="logo-sub">QUANTUM TRADING TERMINAL</div>
+  </div>
+
+  <!-- Card -->
+  <div class="card">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="card-title">IDENTITY VERIFICATION</div>
+
+    <!-- Resume block (показывается если уже залогинен в Firebase) -->
+    <div id="resume-block" style="display:none; flex-direction:column; gap:10px; margin-bottom:20px; padding:16px; background:rgba(184,255,0,0.04); border:1px solid rgba(184,255,0,0.15);">
+      <div style="font-family:var(--fm); font-size:9px; color:rgba(240,244,255,0.4); letter-spacing:2px;">◈ СЕССИЯ АКТИВНА</div>
+      <div id="resume-name" style="font-family:var(--fb); font-size:16px; color:var(--acid); letter-spacing:2px;"></div>
+      <div style="display:flex; gap:8px;">
+        <button onclick="resumeSession()" style="flex:2; height:40px; background:linear-gradient(135deg,rgba(184,255,0,0.15),rgba(184,255,0,0.05)); border:1px solid var(--acid); color:var(--acid); font-family:var(--fb); font-size:14px; letter-spacing:3px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.boxShadow='0 0 16px rgba(184,255,0,0.25)'" onmouseout="this.style.boxShadow=''">
+          ❯ ВОЙТИ
+        </button>
+        <button onclick="switchAccount()" style="flex:1; height:40px; background:transparent; border:1px solid rgba(255,255,255,0.12); color:rgba(240,244,255,0.4); font-family:var(--fm); font-size:9px; letter-spacing:2px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.color='var(--t1)'" onmouseout="this.style.color='rgba(240,244,255,0.4)'">
+          СМЕНИТЬ
+        </button>
+      </div>
+    </div>
+
+    <!-- Google Sign-In -->
+    <button class="btn-google" id="btn-google" onclick="signInWithGoogle()">
+      <div class="spinner" id="spinner"></div>
+      <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      <span class="btn-text">SIGN IN WITH GOOGLE</span>
+    </button>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-text">ADMIN ACCESS</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <!-- Admin link -->
+    <a href="/admin/login" class="admin-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      ADMINISTRATOR PANEL
+    </a>
+
+    <!-- Status -->
+    <div class="status-msg" id="status-msg"></div>
+  </div>
+
+  <div class="footer-note">ACCESS RESTRICTED — AUTHORIZED PERSONNEL ONLY</div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+  // Firebase config (публичные данные — безопасно в JS)
+  const firebaseConfig = {
+    apiKey:            "AIzaSyDEHEfS7fMzKPd7nrOw0XplomfqY4pHUhw",
+    authDomain:        "synapsex-auth.firebaseapp.com",
+    projectId:         "synapsex-auth",
+    storageBucket:     "synapsex-auth.appspot.com",
+    messagingSenderId: "597542244678",
+    appId:             "1:597542244678:web:840c859692db4b0bfad547"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const auth        = getAuth(firebaseApp);
+  const provider    = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  // Проверяем — пришли ли со страницы выхода
+  const _params      = new URLSearchParams(window.location.search);
+  const _loggedOut   = _params.get('logged_out') || _params.get('logout');
+  const _switchAcc   = _params.get('switch');
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user && !_loggedOut && !_switchAcc) {
+      // Уже залогинен — показываем кнопку "продолжить"
+      showResumeBlock(user);
+    } else if (user && (_loggedOut || _switchAcc)) {
+      // Вышли — разлогиниваем Firebase тоже
+      await auth.signOut();
+      hideResumeBlock();
+      // Чистим URL от параметров
+      window.history.replaceState({}, '', '/login');
+    }
+  });
+
+  function showResumeBlock(user) {
+    const block = document.getElementById('resume-block');
+    if (block) {
+      document.getElementById('resume-name').textContent = user.displayName || user.email;
+      block.style.display = 'flex';
+    }
+  }
+  function hideResumeBlock() {
+    const block = document.getElementById('resume-block');
+    if (block) block.style.display = 'none';
+  }
+
+  window.resumeSession = async function() {
+    const user = auth.currentUser;
+    if (!user) return;
+    setStatus('loading', 'VERIFYING IDENTITY...');
+    const idToken = await user.getIdToken(true);
+    await verifyAndRedirect(idToken);
+  };
+
+  window.switchAccount = async function() {
+    await auth.signOut();
+    hideResumeBlock();
+    setStatus('', '');
+  };
+
+  window.signInWithGoogle = async function() {
+    const btn = document.getElementById('btn-google');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    setStatus('loading', 'INITIATING GOOGLE AUTH...');
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+      setStatus('loading', 'TOKEN RECEIVED — VERIFYING...');
+      await verifyAndRedirect(idToken);
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        setStatus('error', 'AUTH CANCELLED');
+      } else {
+        setStatus('error', 'AUTH ERROR: ' + (err.code || err.message));
+      }
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  };
+
+  async function verifyAndRedirect(idToken) {
+    try {
+      const res = await fetch('/auth/google/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken })
+      });
+      const data = await res.json();
+
+      if (data.status === 'OK') {
+        setStatus('success', '✓ ДОСТУП РАЗРЕШЁН — ЗАГРУЗКА ТЕРМИНАЛА...');
+        setTimeout(() => { window.location.href = data.redirect || '/terminal'; }, 600);
+      } else {
+        let errMsg = data.error || 'VERIFICATION FAILED';
+        if (errMsg === 'AUTH_UNAVAILABLE') {
+          errMsg = data.key_found
+            ? 'FIREBASE ОШИБКА — проверьте логи сервера'
+            : 'FIREBASE KEY NOT FOUND — свяжитесь с администратором';
+        } else if (errMsg === 'INVALID_TOKEN') {
+          errMsg = 'ТОКЕН УСТАРЕЛ — попробуйте снова';
+        } else if (errMsg === 'NO_TOKEN') {
+          errMsg = 'ТОКЕН НЕ ПОЛУЧЕН — попробуйте снова';
+        }
+        setStatus('error', '✗ ' + errMsg);
+        document.getElementById('btn-google').classList.remove('loading');
+        document.getElementById('btn-google').disabled = false;
+      }
+    } catch (err) {
+      console.error('[AUTH]', err);
+      setStatus('error', 'SERVER ERROR — TRY AGAIN');
+      document.getElementById('btn-google').classList.remove('loading');
+      document.getElementById('btn-google').disabled = false;
+    }
+  }
+</script>
+
+<script>
+// Matrix background
+(function() {
+  const canvas = document.getElementById('matrix-canvas');
+  const ctx    = canvas.getContext('2d');
+  const chars  = 'SYNAPSEX01アイウエオカキクケコBTCETHSOLアイウエオ0101';
+  let cols, drops;
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cols  = Math.floor(canvas.width / 18);
+    drops = Array(cols).fill(1);
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  setInterval(() => {
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '11px "Share Tech Mono"';
+
+    drops.forEach((y, i) => {
+      const ch = chars[Math.floor(Math.random() * chars.length)];
+      const isAcid = Math.random() < 0.1;
+      ctx.fillStyle = isAcid ? 'rgba(184,255,0,0.7)' : 'rgba(184,255,0,0.15)';
+      ctx.fillText(ch, i * 18, y * 18);
+      if (y * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    });
+  }, 50);
+})();
+
+function setStatus(type, msg) {
+  const el = document.getElementById('status-msg');
+  el.className = 'status-msg visible ' + type;
+  el.textContent = msg;
+}
+</script>
+</body>
+</html>

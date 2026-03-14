@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* Глобальные настройки */
+body {
+    background-color: #010205;
+    color: #e0e0e0;
+    font-family: 'JetBrains Mono', monospace;
+    margin: 0; padding: 0;
+    overflow-x: hidden;
+}
+
+.orbitron { font-family: 'Orbitron', sans-serif; }
+
+/* --- УЛУЧШЕННЫЙ ЛОГОТИП В ШАПКЕ --- */
+.header-logo {
+    height: 65px !important; /* Большой размер */
+    width: auto !important;
+    filter: drop-shadow(0 0 12px #00f0ff); /* Сочное свечение */
+    object-fit: contain;
+    transition: 0.3s;
+}
+
+/* HUD КАРТОЧКИ (Стеклянные панели) */
+.glass-card {
+    background: rgba(13, 17, 23, 0.9) !important;
+    border: 1px solid #00f0ff !important;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.05);
+    backdrop-filter: blur(12px);
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.glass-card:hover {
+    border-color: #ff0066 !important;
+    box-shadow: 0 0 20px rgba(255, 0, 102, 0.2);
+}
+
+/* ФИКС ВЫБОРА МОНЕТ (SELECT BOX) */
+select {
+    background-color: #000 !important;
+    color: #00f0ff !important;
+    border: 1px solid #00f0ff !important;
+    padding: 10px 15px !important;
+    border-radius: 2px !important;
+    width: 100% !important;
+    outline: none !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-size: 11px !important;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300f0ff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%0-5-1.9-9.2-5.5-12.8z%22/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 15px center !important;
+    background-size: 10px auto !important;
+    cursor: pointer;
+}
+
+select option {
+    background-color: #0d1117 !important;
+    color: #00f0ff !important;
+}
+
+/* КНОПКИ */
+.btn-cyber {
+    background: linear-gradient(90deg, #ff0066 0%, #3333ff 100%) !important;
+    border: none !important; color: white !important; font-weight: 900;
+    text-transform: uppercase; transition: 0.3s;
+    font-family: 'Orbitron', sans-serif !important; 
+    height: 42px; width: 100%; display: flex; align-items: center; justify-content: center; text-decoration: none;
+}
+.btn-cyber:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(255, 0, 102, 0.8); }
+
+.btn-panic { background: linear-gradient(90deg, #ff0000 0%, #7a0000 100%) !important; border: 1px solid #ff4444 !important; font-size: 9px !important; }
+.btn-moon { background: linear-gradient(90deg, #00ffd5 0%, #007a66 100%) !important; border: 1px solid #00ffcc !important; font-size: 9px !important; }
+
+/* ЧАТ ТЕРМИНАЛА */
+.chat-scroll { height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 15px; }
+.msg { padding: 14px; border-radius: 4px; font-size: 13px; line-height: 1.6; border: 1px solid rgba(0, 240, 255, 0.1); }
+.msg-u { border-left: 3px solid #00f0ff; background: rgba(0, 240, 255, 0.05); align-self: flex-start; width: 90%; }
+.msg-a { border-left: 3px solid #ff0066; background: rgba(255, 0, 102, 0.04); align-self: flex-start; width: 95%; }
+
+/* ВКЛАДКИ (TABS) */
+.tab-trigger { cursor: pointer; padding: 8px; font-size: 10px; opacity: 0.5; text-align: center; flex: 1; border-bottom: 2px solid transparent; }
+.tab-trigger.active { opacity: 1; border-color: #ff0066; color: #ff0066; text-shadow: 0 0 8px #ff0066; }
+.tab-content { display: none; height: 100%; }
+.tab-content.active { display: block; }
+
+/* СТИЛИ СИГНАЛОВ ИИ */
+.signal-long { color: #00ffcc !important; font-weight: 900; text-shadow: 0 0 10px #00ffcc; text-transform: uppercase; }
+.signal-short { color: #ff0066 !important; font-weight: 900; text-shadow: 0 0 15px #ff0066; text-transform: uppercase; }
+.neon-blue { color: #00f0ff !important; text-shadow: 0 0 8px #00f0ff; font-weight: bold; }
+
+/* Скроллбар */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #00f0ff; border-radius: 10px; }
+
+header, footer,[data-testid="stHeader"] { visibility: hidden !important; display: none !important; }
+#bg-canvas { position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none; }
+/* СТИЛЬ ДАТЧИКОВ (GAUGES) */
+.gauge-container { display: flex; justify-content: space-around; padding: 10px 0; }
+.gauge { text-align: center; }
+.gauge-circle { 
+    width: 60px; height: 60px; border-radius: 50%; 
+    border: 3px solid #333; border-top: 3px solid #00f0ff; 
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: bold; color: #00f0ff;
+    text-shadow: 0 0 5px #00f0ff; animation: rotate-glow 2s linear infinite;
+}
+@keyframes rotate-glow { 0% { box-shadow: 0 0 5px #00f0ff; } 50% { box-shadow: 0 0 20px #00f0ff; } 100% { box-shadow: 0 0 5px #00f0ff; } }
+
+/* TOKEN DISTRIBUTION MATRIX */
+.dist-container { padding: 10px; text-align: center; }
+.pie-wrap { position: relative; width: 100px; height: 100px; margin: 0 auto; }
+.pie-svg { transform: rotate(-90deg); filter: drop-shadow(0 0 5px #ff0066); }
+
+/* AI THOUGHTS LOG */
+.ai-thoughts {
+    background: rgba(0,0,0,0.5); border: 1px solid rgba(0,240,255,0.2);
+    height: 80px; font-size: 9px; color: #00ffcc; padding: 8px;
+    overflow: hidden; border-radius: 4px; line-height: 1.4;
+}
+.thought-line { opacity: 0.8; border-left: 2px solid #00ffcc; padding-left: 5px; margin-bottom: 3px; animation: blink-text 0.1s steps(1); }
+
+/* =========================================
+   МОБИЛЬНАЯ АДАПТАЦИЯ (СМАРТФОНЫ И ПЛАНШЕТЫ)
+   ========================================= */
+@media (max-width: 1024px) {
+    body { overflow-y: auto; }
+    .chat-scroll { height: 300px; }
+    .gauge-container { flex-wrap: wrap; gap: 15px; }
+}

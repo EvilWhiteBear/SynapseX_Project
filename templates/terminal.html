@@ -2117,6 +2117,13 @@ function obSkip() {
         <div id="prof-name" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#f0f4ff;"></div>
         <div id="prof-email" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(240,244,255,0.4);margin-top:4px;"></div>
         <div id="prof-badge" style="margin-top:10px;"></div>
+        <div id="prof-trial-badge" style="display:none;margin-top:6px;
+             padding:4px 12px;background:rgba(0,229,255,0.1);
+             border:1px solid rgba(0,229,255,0.3);
+             font-family:'Share Tech Mono',monospace;font-size:9px;
+             color:#00e5ff;letter-spacing:2px;">
+          🎁 TRIAL АКТИВЕН
+        </div>
       </div>
 
       <!-- Статистика -->
@@ -2145,7 +2152,16 @@ function obSkip() {
       </div>
 
       <!-- Кнопки -->
-      <div style="display:flex;gap:8px;margin-top:8px;">
+      <!-- Кнопка реферальной программы -->
+      <a href="/referral" style="display:flex;align-items:center;justify-content:center;
+         gap:8px;height:38px;margin-bottom:8px;
+         background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.3);
+         color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:10px;
+         letter-spacing:2px;text-decoration:none;">
+        ⚡ РЕФЕРАЛЬНАЯ ПРОГРАММА
+      </a>
+
+      <div style="display:flex;gap:8px;margin-top:4px;">
         {% if not user.is_premium %}
         <a href="/premium" style="flex:1;height:38px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(184,255,0,0.15),rgba(184,255,0,0.05));border:1px solid rgba(184,255,0,0.4);color:#b8ff00;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:3px;text-decoration:none;">★ PREMIUM</a>
         {% endif %}

@@ -264,7 +264,15 @@ canvas#bg { position: fixed; inset: 0; z-index: 0; opacity: 0.08; pointer-events
       <div class="plan-price-period">{% if current_lang == "EN" %}/ MONTH{% else %}/ МЕСЯЦ{% endif %}</div>
       <div class="plan-desc">{% if current_lang == "EN" %}Visa / Mastercard / SEPA{% else %}Visa / Mastercard / SEPA{% endif %}</div>
     </div>
-    <div class="plan-card{% if not stripe_configured %} selected{% endif %}" onclick="selectPlan('crypto', this)">
+    <div class="plan-card selected" data-plan="card"
+     onclick="document.querySelectorAll('.plan-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');"
+     style="border-color:rgba(0,229,255,0.4);background:rgba(0,229,255,0.05);">
+  <div class="plan-icon">💳</div>
+  <div class="plan-currency-name">VISA / MASTERCARD</div>
+  <div class="plan-currency-sub">Любая карта · Весь мир</div>
+  <div class="plan-fee">Комиссия 5%</div>
+</div>
+<div class="plan-card" onclick="selectPlan('crypto', this)">
       <div class="plan-currency-flag" style="font-size:20px;">₿</div>
       <div class="plan-currency-name">{% if current_lang == "EN" %}CRYPTO · USDT · BTC{% else %}CRYPTO · USDT · BTC{% endif %}</div>
       <div class="plan-price">

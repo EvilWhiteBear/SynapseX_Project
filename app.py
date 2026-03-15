@@ -886,6 +886,50 @@ _SIGNAL_LIMITS = {
     "premium_daily_limit": 15,
 }
 
+
+def _backup_db_to_telegram():
+    """Отправляет signals.db как файл в Telegram Admin."""
+    if not TG_TOKEN_TERMINAL or not ADMIN_CHAT_ID:
+        return False
+    if not os.path.exists(DB_PATH):
+        return False
+    try:
+        db_size = os.path.getsize(DB_PATH)
+        if db_size == 0:
+            return False
+        caption = (f"🗄 DB Backup\n"
+                   f"📦 {db_size//1024}KB\n"
+                   f"🕐 {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M UTC')}")
+        with open(DB_PATH, 'rb') as f:
+            resp = requests.post(
+                f"https://api.telegram.org/bot{TG_TOKEN_TERMINAL}/sendDocument",
+                data={"chat_id": ADMIN_CHAT_ID, "caption": caption},
+                files={"document": ("signals.db", f, "application/octet-stream")},
+                timeout=30
+            )
+        if resp.ok:
+            log.info(f"[BACKUP] ✅ DB сохранена в Telegram ({db_size//1024}KB)")
+            return True
+        else:
+            log.warning(f"[BACKUP] ❌ Ошибка: {resp.text[:100]}")
+            return False
+    except Exception as e:
+        log.warning(f"[BACKUP] Ошибка бэкапа: {e}")
+        return False
+
+
+def _start_db_backup_scheduler():
+    """Запускает автобэкап БД каждые 6 часов."""
+    def _scheduler():
+        import time as _t
+        _t.sleep(300)  # первый бэкап через 5 мин
+        while True:
+            _backup_db_to_telegram()
+            _t.sleep(6 * 3600)
+    threading.Thread(target=_scheduler, daemon=True, name="DBBackupScheduler").start()
+    log.info("[BACKUP] Планировщик бэкапа запущен (каждые 6ч → Telegram)")
+
+
 def _load_limits_from_db():
     """Загружает лимиты из БД (если были сохранены ранее)."""
     try:

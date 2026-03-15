@@ -2797,6 +2797,7 @@ if _portfolio_ready:
 
 # Запускаем полную очистку всех таблиц (signals + trades + screener + error_log)
 _start_full_cleanup_scheduler(DB_PATH)
+_start_db_backup_scheduler()   # автобэкап в Telegram каждые 6ч
 threading.Thread(target=_warm_cache, daemon=True).start()
 
 
@@ -3261,6 +3262,16 @@ def admin_storage_stats():
         return jsonify(stats)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/admin/api/db/backup', methods=['POST'])
+@_require_admin
+def admin_db_backup():
+    """Ручной бэкап БД в Telegram."""
+    ok = _backup_db_to_telegram()
+    if ok:
+        return jsonify({"status": "OK", "message": "БД отправлена в Telegram"})
+    return jsonify({"error": "Бэкап не удался — проверь TELEGRAM_TOKEN_TERMINAL и ADMIN_CHAT_ID"}), 500
 
 
 @app.route('/admin/api/storage/cleanup', methods=['POST'])
@@ -3733,6 +3744,35 @@ def api_public_stats():
         })
     except Exception as e:
         return jsonify({"signals_today": 0, "online": 0, "last_signal": None, "error": str(e)})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PWA — Progressive Web App
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/manifest.json')
+def pwa_manifest():
+    """PWA manifest — описание приложения для мобильных устройств."""
+    from flask import send_from_directory
+    return send_from_directory('.', 'manifest.json',
+                               mimetype='application/manifest+json')
+
+
+@app.route('/service-worker.js')
+def pwa_service_worker():
+    """Service Worker — кэширование для PWA."""
+    from flask import send_from_directory
+    response = send_from_directory('.', 'service-worker.js',
+                                   mimetype='application/javascript')
+    response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+
+@app.route('/offline')
+def pwa_offline():
+    """Страница офлайн режима PWA."""
+    return render_template('offline.html')
 
 
 if __name__ == '__main__':

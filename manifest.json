@@ -1,0 +1,44 @@
+{
+  "name": "SynapseX AI",
+  "short_name": "SynapseX",
+  "description": "AI-powered crypto trading terminal",
+  "start_url": "/terminal",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#050a14",
+  "theme_color": "#b8ff00",
+  "lang": "ru",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/static/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Терминал",
+      "short_name": "Terminal",
+      "description": "Открыть торговый терминал",
+      "url": "/terminal",
+      "icons": [{ "src": "/static/img/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Premium",
+      "short_name": "Premium",
+      "description": "Оформить Premium подписку",
+      "url": "/premium",
+      "icons": [{ "src": "/static/img/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["finance", "utilities"],
+  "screenshots": []
+}

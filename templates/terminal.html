@@ -3,6 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#b8ff00">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SynapseX">
+  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/static/img/icon-512.png">
+  <!-- PWA Install Script -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('[PWA] SW registered:', reg.scope))
+          .catch(err => console.log('[PWA] SW error:', err));
+      });
+    }
+    // iOS install prompt helper
+    window.addEventListener('load', () => {
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isStandalone = window.navigator.standalone === true;
+      if (isIOS && !isStandalone) {
+        // Show iOS install hint after 3 seconds
+        setTimeout(() => {
+          const hint = document.getElementById('pwa-ios-hint');
+          if (hint) hint.style.display = 'flex';
+        }, 3000);
+      }
+    });
+  </script>
 <title>{{ L.terminal_title }}</title>
 
 

@@ -152,6 +152,59 @@ except ImportError:
                 'sl': 82.00, 'bullish_score': 4, 'mtf_data': {}
             }
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  DB BACKUP — автобэкап в Telegram каждые 6 часов
+#  При старте — восстановление если БД отсутствует
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _backup_db_to_telegram():
+    """Отправляет signals.db как файл в Telegram Admin."""
+    if not TG_TOKEN_TERMINAL or not ADMIN_CHAT_ID:
+        return False
+    if not os.path.exists(DB_PATH):
+        return False
+    try:
+        import requests as _req
+        db_size = os.path.getsize(DB_PATH)
+        if db_size == 0:
+            return False
+        caption = (f"🗄 DB Backup\n"
+                   f"📦 {db_size//1024}KB\n"
+                   f"🕐 {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M UTC')}")
+        with open(DB_PATH, 'rb') as f:
+            resp = _req.post(
+                f"https://api.telegram.org/bot{TG_TOKEN_TERMINAL}/sendDocument",
+                data={"chat_id": ADMIN_CHAT_ID, "caption": caption},
+                files={"document": ("signals.db", f, "application/octet-stream")},
+                timeout=30
+            )
+        if resp.ok:
+            log.info(f"[BACKUP] ✅ DB сохранена в Telegram ({db_size//1024}KB)")
+            return True
+        else:
+            log.warning(f"[BACKUP] ❌ Ошибка: {resp.text[:100]}")
+            return False
+    except Exception as e:
+        log.warning(f"[BACKUP] Ошибка бэкапа: {e}")
+        return False
+
+
+def _start_db_backup_scheduler():
+    """Запускает автобэкап БД каждые 6 часов."""
+    import time as _time
+
+    def _scheduler():
+        _time.sleep(300)  # первый бэкап через 5 мин после старта
+        while True:
+            _backup_db_to_telegram()
+            _time.sleep(6 * 3600)  # затем каждые 6 часов
+
+    t = threading.Thread(target=_scheduler, daemon=True, name="DBBackupScheduler")
+    t.start()
+    log.info("[BACKUP] Планировщик бэкапа БД запущен (каждые 6ч → Telegram)")
+
+
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET", "synapse_monolith_supreme_2024")
 
@@ -192,7 +245,17 @@ FIREBASE_CONFIG = {
 }
 
 # ── Хранилище ─────────────────────────────────────────────────────────────────
-DB_PATH   = os.getenv("SYNAPSE_DB",  "signals.db")
+# ── DB path — читается из env или используется /app/signals.db ───────────────
+# На Timeweb установи: SYNAPSE_DB=/app/signals.db
+# /app/ — рабочая директория контейнера, данные остаются между рестартами
+DB_PATH = os.getenv("SYNAPSE_DB", "/app/signals.db")
+# Создаём директорию если нет
+_db_dir = os.path.dirname(DB_PATH)
+if _db_dir and not os.path.exists(_db_dir):
+    try:
+        os.makedirs(_db_dir, exist_ok=True)
+    except Exception:
+        DB_PATH = "signals.db"  # fallback
 REDIS_URL = os.getenv("REDIS_URL",   "")            # пусто → in-memory кэш
 
 # ── Авто-постинг ──────────────────────────────────────────────────────────────

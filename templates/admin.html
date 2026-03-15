@@ -643,6 +643,7 @@ canvas#bg{position:fixed;inset:0;z-index:0;opacity:.09;pointer-events:none;}
       <h2 style="font-family:var(--fb);font-size:18px;letter-spacing:2px;">💾 ХРАНИЛИЩЕ</h2>
       <div style="display:flex;gap:8px;">
         <button onclick="loadStorage()" class="btn-action">🔄 Обновить</button>
+        <button onclick="runDbBackup()" class="btn-action" style="background:rgba(0,229,255,0.1);border-color:rgba(0,229,255,0.3);">💾 Бэкап в Telegram</button>
         <button onclick="runCleanup(60)" class="btn-action" style="background:rgba(255,179,0,0.1);border-color:rgba(255,179,0,0.3);">🗑 Очистить 60д+</button>
         <button onclick="runCleanup(30)" class="btn-action btn-danger">⚠ Очистить 30д+</button>
       </div>
@@ -1345,6 +1346,22 @@ async function loadStorage() {
         ` &nbsp;|&nbsp; Хранение: <b style="color:var(--acid)">${d.retention_days||60} дней</b>`;
     }
   } catch(e) { console.error('storage:', e); }
+}
+
+async function runDbBackup() {
+  const logEl = document.getElementById('storage-cleanup-log');
+  if (logEl) logEl.innerHTML = '⏳ Создаём бэкап БД...';
+  try {
+    const r = await fetch('/admin/api/db/backup', {method:'POST'});
+    const d = await r.json();
+    if (d.status === 'OK') {
+      if (logEl) logEl.innerHTML = '✅ <b>Бэкап отправлен в Telegram!</b><br>Проверь личку от бота.';
+    } else {
+      if (logEl) logEl.innerHTML = '❌ ' + (d.error || 'Ошибка бэкапа');
+    }
+  } catch(e) {
+    if (logEl) logEl.innerHTML = '❌ Ошибка: ' + e.message;
+  }
 }
 
 async function runCleanup(days) {

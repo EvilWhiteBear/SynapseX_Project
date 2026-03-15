@@ -3589,6 +3589,18 @@ def referral_redirect(code):
 #  STRIPE — оплата Premium подписки
 # ══════════════════════════════════════════════════════════════════════════════
 
+@app.route('/terms')
+def terms_page():
+    """Страница Terms of Service и Privacy Policy."""
+    return render_template('terms.html')
+
+
+@app.route('/privacy')
+def privacy_page():
+    """Редирект на terms (они на одной странице)."""
+    return redirect('/terms#privacy')
+
+
 @app.route('/referral')
 def referral_page():
     """Страница реферальной программы."""

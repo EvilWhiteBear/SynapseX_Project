@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang|lower }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SynapseX — Реферальная программа</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#b8ff00">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--g:#b8ff00;--c:#00e5ff;--bg:#050a14;--card:#0a1525;--b:rgba(184,255,0,0.15)}
+    body{background:var(--bg);font-family:'Courier New',monospace;color:#e0e0e0;min-height:100vh}
+    canvas#bg{position:fixed;inset:0;z-index:0;opacity:0.4}
+    .wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:32px 16px}
+    
+    /* Header */
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
+    .logo{font-size:18px;font-weight:900;color:var(--g);letter-spacing:4px}
+    .back-btn{color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;text-decoration:none;
+              border:1px solid rgba(255,255,255,0.1);padding:6px 14px;transition:.2s}
+    .back-btn:hover{color:var(--g);border-color:var(--g)}
+    
+    /* Hero */
+    .hero{text-align:center;margin-bottom:48px}
+    .hero-title{font-size:32px;font-weight:900;color:var(--g);letter-spacing:4px;margin-bottom:12px}
+    .hero-sub{font-size:13px;color:#607080;letter-spacing:1px;line-height:1.8}
+    
+    /* Stats */
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+    .stat-card{background:var(--card);border:1px solid var(--b);padding:20px;text-align:center}
+    .stat-val{font-size:32px;font-weight:900;color:var(--g);margin:8px 0}
+    .stat-label{font-size:9px;color:#607080;letter-spacing:2px}
+    
+    /* Ref link */
+    .ref-section{background:var(--card);border:1px solid var(--b);padding:28px;margin-bottom:32px}
+    .ref-title{font-size:10px;color:#607080;letter-spacing:3px;margin-bottom:16px}
+    .ref-link-wrap{display:flex;gap:8px;margin-bottom:12px}
+    .ref-link{flex:1;background:#050a14;border:1px solid rgba(184,255,0,0.2);
+              color:var(--g);padding:12px 16px;font-family:'Courier New',monospace;
+              font-size:12px;outline:none}
+    .copy-btn{background:var(--g);color:#050a14;border:none;padding:12px 20px;
+              font-family:'Courier New',monospace;font-size:11px;font-weight:700;
+              letter-spacing:2px;cursor:pointer;transition:.2s;white-space:nowrap}
+    .copy-btn:hover{background:#d4ff00}
+    .copy-btn.copied{background:var(--c);color:#050a14}
+    .ref-hint{font-size:10px;color:#607080;letter-spacing:1px}
+    
+    /* How it works */
+    .how-title{font-size:10px;color:#607080;letter-spacing:3px;margin-bottom:20px}
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+    .step{background:var(--card);border:1px solid rgba(255,255,255,0.05);padding:20px;
+          position:relative;overflow:hidden}
+    .step::before{content:attr(data-n);position:absolute;top:-10px;right:10px;
+                  font-size:60px;font-weight:900;color:rgba(184,255,0,0.05);line-height:1}
+    .step-icon{font-size:24px;margin-bottom:12px}
+    .step-title{font-size:12px;color:var(--g);letter-spacing:1px;margin-bottom:8px}
+    .step-text{font-size:11px;color:#607080;line-height:1.6}
+    
+    /* Referrals table */
+    .table-section{background:var(--card);border:1px solid var(--b);overflow:hidden}
+    .table-header{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);
+                  font-size:9px;color:#607080;letter-spacing:3px;display:flex;
+                  justify-content:space-between}
+    .ref-row{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.03);
+             display:flex;justify-content:space-between;align-items:center;
+             font-size:12px}
+    .ref-row:last-child{border-bottom:none}
+    .ref-row:hover{background:rgba(184,255,0,0.02)}
+    .ref-email{color:#a0b0c0}
+    .ref-date{color:#607080;font-size:10px}
+    .ref-bonus{color:var(--g);font-weight:700}
+    .empty-refs{padding:40px;text-align:center;color:#607080;font-size:12px;
+                letter-spacing:1px}
+    
+    /* Share buttons */
+    .share{display:flex;gap:12px;margin-top:32px;justify-content:center}
+    .share-btn{padding:10px 20px;border:1px solid rgba(255,255,255,0.1);
+               font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;
+               cursor:pointer;background:transparent;color:#a0b0c0;transition:.2s}
+    .share-btn:hover{border-color:var(--g);color:var(--g)}
+    
+    @media(max-width:600px){
+      .stats{grid-template-columns:repeat(2,1fr)}
+      .steps{grid-template-columns:1fr}
+      .hero-title{font-size:22px}
+    }
+  </style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="wrap">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">SYNAPSE X</div>
+    <a href="/terminal" class="back-btn">← ТЕРМИНАЛ</a>
+  </div>
+  
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-title">РЕФЕРАЛЬНАЯ ПРОГРАММА</div>
+    <div class="hero-sub">
+      Приглашай друзей — получай бонусные сигналы.<br>
+      За каждого приглашённого пользователя — +1 сигнал в день навсегда.
+    </div>
+  </div>
+  
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">ПРИГЛАШЕНО</div>
+      <div class="stat-val" id="ref-count">—</div>
+      <div class="stat-label">пользователей</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">БОНУС СИГНАЛОВ</div>
+      <div class="stat-val" id="ref-bonus" style="color:var(--c)">—</div>
+      <div class="stat-label">доп. в день</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ТВОЙ ПЛАН</div>
+      <div class="stat-val" id="ref-plan" style="font-size:18px">—</div>
+      <div class="stat-label">текущий лимит/день</div>
+    </div>
+  </div>
+  
+  <!-- Referral link -->
+  <div class="ref-section">
+    <div class="ref-title">ТВОЯ РЕФЕРАЛЬНАЯ ССЫЛКА</div>
+    <div class="ref-link-wrap">
+      <input class="ref-link" id="ref-url" readonly value="Загрузка...">
+      <button class="copy-btn" id="copy-btn" onclick="copyRef()">КОПИРОВАТЬ</button>
+    </div>
+    <div class="ref-hint">⚡ Каждый кто зарегистрируется по этой ссылке — принесёт тебе +1 сигнал/день</div>
+  </div>
+  
+  <!-- How it works -->
+  <div class="how-title">КАК ЭТО РАБОТАЕТ</div>
+  <div class="steps">
+    <div class="step" data-n="1">
+      <div class="step-icon">🔗</div>
+      <div class="step-title">ПОДЕЛИСЬ ССЫЛКОЙ</div>
+      <div class="step-text">Скопируй свою реферальную ссылку и отправь другу в Telegram, Twitter или Discord</div>
+    </div>
+    <div class="step" data-n="2">
+      <div class="step-icon">👤</div>
+      <div class="step-title">ДРУГ РЕГИСТРИРУЕТСЯ</div>
+      <div class="step-text">Друг переходит по ссылке и входит через Google — привязка происходит автоматически</div>
+    </div>
+    <div class="step" data-n="3">
+      <div class="step-icon">⚡</div>
+      <div class="step-title">ТЫ ПОЛУЧАЕШЬ БОНУС</div>
+      <div class="step-text">+1 AI сигнал в день за каждого реферала навсегда. Без ограничений по количеству</div>
+    </div>
+  </div>
+  
+  <!-- Referrals list -->
+  <div class="table-section">
+    <div class="table-header">
+      <span>ПРИГЛАШЁННЫЕ ПОЛЬЗОВАТЕЛИ</span>
+      <span id="ref-total-badge">0 чел.</span>
+    </div>
+    <div id="ref-list">
+      <div class="empty-refs">⟳ Загрузка...</div>
+    </div>
+  </div>
+  
+  <!-- Share -->
+  <div class="share">
+    <button class="share-btn" onclick="shareTelegram()">✈ TELEGRAM</button>
+    <button class="share-btn" onclick="shareTwitter()">🐦 TWITTER</button>
+    <button class="share-btn" onclick="copyRef()">🔗 СКОПИРОВАТЬ</button>
+  </div>
+</div>
+
+<script>
+let refCode = '';
+let refUrl  = '';
+
+async function loadProfile() {
+  try {
+    const r = await fetch('/api/profile');
+    if (!r.ok) { window.location.href = '/login?next=/referral'; return; }
+    const d = await r.json();
+    
+    refCode = d.ref_code || '';
+    refUrl  = `${location.origin}/ref/${refCode}`;
+    
+    document.getElementById('ref-url').value    = refUrl;
+    document.getElementById('ref-count').textContent = d.referral_count || 0;
+    document.getElementById('ref-bonus').textContent = `+${d.referral_bonus || 0}`;
+    document.getElementById('ref-plan').textContent  = `${d.daily_limit || 2}/день`;
+    document.getElementById('ref-total-badge').textContent = `${d.referral_count || 0} чел.`;
+    
+    loadReferrals(d.referrals || []);
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function loadReferrals(refs) {
+  const el = document.getElementById('ref-list');
+  if (!refs.length) {
+    el.innerHTML = '<div class="empty-refs">Пока никого нет.<br>Поделись ссылкой — и получи первый бонус!</div>';
+    return;
+  }
+  el.innerHTML = refs.map(r => `
+    <div class="ref-row">
+      <span class="ref-email">${r.email ? r.email.replace(/(.{2}).*(@.*)/, '$1***$2') : 'Аноним'}</span>
+      <span class="ref-date">${(r.created_at||'').slice(0,10)}</span>
+      <span class="ref-bonus">+1 сигнал</span>
+    </div>`).join('');
+}
+
+function copyRef() {
+  navigator.clipboard.writeText(refUrl).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ СКОПИРОВАНО';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'КОПИРОВАТЬ'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function shareTelegram() {
+  const text = encodeURIComponent(`🤖 SynapseX — AI торговый терминал\n⚡ 13 факторов анализа, live сигналы\n\nПопробуй бесплатно: ${refUrl}`);
+  window.open(`https://t.me/share/url?url=${encodeURIComponent(refUrl)}&text=${text}`);
+}
+
+function shareTwitter() {
+  const text = encodeURIComponent(`⚡ SynapseX — AI crypto terminal with 13-factor analysis. Try free: ${refUrl}`);
+  window.open(`https://twitter.com/intent/tweet?text=${text}`);
+}
+
+// Matrix background
+(function(){
+  const c=document.getElementById('bg');
+  const ctx=c.getContext('2d');
+  c.width=window.innerWidth; c.height=window.innerHeight;
+  const chars='01SX⚡'; const cols=Math.floor(c.width/20);
+  const drops=Array(cols).fill(1);
+  setInterval(()=>{
+    ctx.fillStyle='rgba(5,10,20,0.05)';
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='rgba(184,255,0,0.15)';
+    ctx.font='14px monospace';
+    drops.forEach((y,i)=>{
+      ctx.fillText(chars[Math.floor(Math.random()*chars.length)],i*20,y*18);
+      if(y*18>c.height&&Math.random()>.975)drops[i]=0;
+      drops[i]++;
+    });
+  },80);
+})();
+
+loadProfile();
+</script>
+</body>
+</html>

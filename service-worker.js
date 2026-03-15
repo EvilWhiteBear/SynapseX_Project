@@ -70,3 +70,44 @@ self.addEventListener('fetch', event => {
       })
   );
 });
+
+// ── Push Notifications ────────────────────────────────────────────────────────
+self.addEventListener('push', event => {
+  if (!event.data) return;
+  
+  let data = {};
+  try { data = event.data.json(); } 
+  catch { data = { title: 'SynapseX', body: event.data.text() }; }
+
+  const options = {
+    body:    data.body    || 'Новый сигнал готов',
+    icon:    data.icon    || '/static/img/icon-192.png',
+    badge:   '/static/img/icon-192.png',
+    tag:     data.tag     || 'synapsex-signal',
+    data:    { url: data.url || '/terminal' },
+    actions: [
+      { action: 'open',    title: '📊 Открыть' },
+      { action: 'dismiss', title: '✕ Закрыть'  },
+    ],
+    vibrate: [200, 100, 200],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || '⚡ SynapseX Signal', options)
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  if (event.action === 'dismiss') return;
+  
+  const url = event.notification.data?.url || '/terminal';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url.includes(url) && 'focus' in client) return client.focus();
+      }
+      return clients.openWindow(url);
+    })
+  );
+});

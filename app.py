@@ -46,6 +46,43 @@ except ImportError as e:
 from flask import (Flask, render_template, request, jsonify,
                    session, redirect, url_for, Response, stream_with_context)
 
+# ── Paddle Payments (карты для Сербии и всего мира) ──────────────────────────
+try:
+    from paddle_payments import (
+        create_checkout_link, handle_paddle_webhook,
+        verify_webhook_signature as verify_paddle_signature,
+        init_paddle_db, get_paddle_status,
+        _is_configured as _paddle_configured,
+        PADDLE_CLIENT_TOKEN,
+    )
+    _paddle_ready = True
+    log.info("[PADDLE] paddle_payments.py загружен ✓")
+except ImportError as _pe:
+    _paddle_ready = False
+    PADDLE_CLIENT_TOKEN = ""
+    def create_checkout_link(*a, **k): return {"error": "Paddle не установлен"}
+    def handle_paddle_webhook(*a, **k): return {"status": "disabled"}
+    def verify_paddle_signature(*a, **k): return True
+    def init_paddle_db(*a, **k): pass
+    def get_paddle_status(*a, **k): return {"is_premium": False}
+    def _paddle_configured(): return False
+
+# ── Paddle Payments (карты Visa/MC для всех стран включая Сербию) ────────────
+try:
+    from paddle_payments import (
+        init_paddle_db, create_checkout_url as create_paddle_checkout,
+        handle_paddle_webhook, verify_webhook_signature as verify_paddle_sig,
+        get_paddle_status, _paddle_configured
+    )
+    log.info("[PADDLE] paddle_payments.py загружен ✓") if 'log' in dir() else None
+except ImportError:
+    def init_paddle_db(*a, **k): pass
+    def create_paddle_checkout(*a, **k): return {"error": "Paddle не установлен"}
+    def handle_paddle_webhook(*a, **k): return {}
+    def verify_paddle_sig(*a, **k): return True
+    def get_paddle_status(*a, **k): return {}
+    _paddle_configured = False
+
 # ── S3 Backup (Timeweb S3 для хранения БД) ───────────────────────────────────
 try:
     from s3_backup import (
@@ -1005,6 +1042,32 @@ def _get_signal_limit(uid: str) -> int:
             return _SIGNAL_LIMITS["premium_daily_limit"] if is_prem else _SIGNAL_LIMITS["free_daily_limit"]
     except Exception:
         return _SIGNAL_LIMITS["free_daily_limit"]
+
+def _get_referral_count(uid: str) -> int:
+    """Количество приглашённых пользователей."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM users WHERE referred_by=?", (uid,)
+            ).fetchone()
+            return row[0] if row else 0
+    except Exception:
+        return 0
+
+
+def _get_referrals_list(uid: str) -> list:
+    """Список приглашённых пользователей."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT email, name, created_at FROM users WHERE referred_by=? ORDER BY created_at DESC LIMIT 50",
+                (uid,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception:
+        return []
+
 
 def _get_referral_bonus(uid: str) -> int:
     """Возвращает бонусные сигналы за рефералов: +1 за каждого (макс 10)."""
@@ -2840,6 +2903,9 @@ restore_if_needed(DB_PATH)
 
 _init_db()
 _init_users_db()
+init_paddle_db(DB_PATH)   # Paddle подписки
+if _paddle_ready:
+    init_paddle_db(DB_PATH)
 
 if _portfolio_ready:
     init_portfolio_db(DB_PATH)
@@ -3523,6 +3589,15 @@ def referral_redirect(code):
 #  STRIPE — оплата Premium подписки
 # ══════════════════════════════════════════════════════════════════════════════
 
+@app.route('/referral')
+def referral_page():
+    """Страница реферальной программы."""
+    if not session.get('user_uid'):
+        return redirect('/login?next=/referral')
+    lang = session.get('lang', 'RU')
+    return render_template('referral.html', current_lang=lang)
+
+
 @app.route('/premium')
 def premium_page():
     """Страница оформления Premium подписки."""
@@ -3682,6 +3757,79 @@ def api_activate_trial():
         return jsonify({"error": str(e)}), 500
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  PADDLE PAYMENTS — карточные платежи (Visa/Mastercard)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/paddle/checkout', methods=['POST'])
+def api_paddle_checkout():
+    """Создаёт Paddle Checkout URL для оплаты подписки картой."""
+    uid = session.get('user_uid')
+    if not uid:
+        return jsonify({"error": "NOT_LOGGED_IN"}), 401
+    if not _paddle_configured:
+        return jsonify({"error": "Paddle не настроен"}), 503
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT email FROM users WHERE uid=?", (uid,)
+            ).fetchone()
+        email    = row[0] if row else ""
+        currency = request.json.get("currency", "USD") if request.is_json else "USD"
+        result   = create_paddle_checkout(uid, email, currency)
+        return jsonify(result)
+    except Exception as e:
+        log.exception("/api/paddle/checkout error")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/paddle/webhook', methods=['POST'])
+def paddle_webhook():
+    """Обрабатывает Paddle webhooks (подписки, платежи)."""
+    payload_bytes = request.get_data()
+    sig_header    = request.headers.get("Paddle-Signature", "")
+
+    if not verify_paddle_sig(payload_bytes, sig_header):
+        log.warning("[PADDLE] Неверная подпись webhook")
+        return jsonify({"error": "invalid signature"}), 400
+
+    try:
+        payload = request.get_json(force=True) or {}
+    except Exception:
+        return jsonify({"error": "invalid JSON"}), 400
+
+    result = handle_paddle_webhook(payload, DB_PATH)
+
+    # Отправляем email при активации Premium
+    if result.get("premium") and result.get("uid"):
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                row = conn.execute(
+                    "SELECT email, name, premium_until FROM users WHERE uid=?",
+                    (result["uid"],)
+                ).fetchone()
+            if row:
+                send_premium_activated(
+                    email=row[0] or "",
+                    name=row[1] or "",
+                    period_end=row[2] or "",
+                    method="stripe"  # карта
+                )
+        except Exception as _pe:
+            log.warning(f"[PADDLE] Email error: {_pe}")
+
+    return jsonify({"status": "OK"}), 200
+
+
+@app.route('/api/paddle/status', methods=['GET'])
+def api_paddle_status():
+    """Статус Paddle подписки текущего пользователя."""
+    uid = session.get('user_uid')
+    if not uid:
+        return jsonify({"error": "NOT_LOGGED_IN"}), 401
+    return jsonify(get_paddle_status(uid, DB_PATH))
+
+
 @app.route('/stripe/webhook', methods=['POST'])
 def stripe_webhook():
     """
@@ -3810,6 +3958,79 @@ def api_public_stats():
         })
     except Exception as e:
         return jsonify({"signals_today": 0, "online": 0, "last_signal": None, "error": str(e)})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PADDLE PAYMENTS — Карточные платежи (Visa/Mastercard)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/paddle/checkout', methods=['POST'])
+def api_paddle_checkout():
+    """Создаёт Paddle checkout ссылку для оплаты."""
+    uid = session.get('user_uid')
+    if not uid:
+        return jsonify({"error": "NOT_LOGGED_IN"}), 401
+    if not _paddle_configured():
+        return jsonify({"error": "Paddle не настроен"}), 503
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT email, name FROM users WHERE uid=?", (uid,)
+            ).fetchone()
+        email = row[0] if row else ""
+        result = create_checkout_link(uid, email, DB_PATH)
+        return jsonify(result)
+    except Exception as e:
+        log.exception("/api/paddle/checkout error")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/paddle/webhook', methods=['POST'])
+def paddle_webhook():
+    """Paddle webhook — активирует Premium после оплаты."""
+    payload_bytes = request.get_data()
+    sig_header    = request.headers.get("Paddle-Signature", "")
+
+    if not verify_paddle_signature(payload_bytes, sig_header):
+        log.warning("[PADDLE] Invalid webhook signature")
+        return jsonify({"error": "Invalid signature"}), 400
+
+    try:
+        payload = json.loads(payload_bytes)
+    except Exception:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    result = handle_paddle_webhook(payload, DB_PATH)
+
+    # Отправляем email при активации
+    if result.get("premium") and result.get("uid"):
+        try:
+            uid_p = result["uid"]
+            with sqlite3.connect(DB_PATH) as conn:
+                row = conn.execute(
+                    "SELECT email, name, premium_until FROM users WHERE uid=?",
+                    (uid_p,)
+                ).fetchone()
+            if row:
+                send_premium_activated(
+                    email=row[0] or "",
+                    name=row[1] or "",
+                    period_end=row[2] or "",
+                    method="stripe"  # карта
+                )
+        except Exception as _pe:
+            log.warning(f"[PADDLE] Email error: {_pe}")
+
+    return jsonify({"status": "OK"}), 200
+
+
+@app.route('/api/paddle/status', methods=['GET'])
+def api_paddle_status():
+    """Статус Paddle подписки пользователя."""
+    uid = session.get('user_uid')
+    if not uid:
+        return jsonify({"error": "NOT_LOGGED_IN"}), 401
+    return jsonify(get_paddle_status(uid, DB_PATH))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

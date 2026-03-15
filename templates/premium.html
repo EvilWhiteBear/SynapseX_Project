@@ -242,37 +242,30 @@ canvas#bg { position: fixed; inset: 0; z-index: 0; opacity: 0.08; pointer-events
 
   <!-- Выбор тарифа (валюта) -->
   <div class="plans" id="plans-block">
-    {% if stripe_configured %}
-    <div class="plan-card selected" onclick="selectPlan('usd', this)">
-      <div class="plan-currency-flag">🇺🇸</div>
-      <div class="plan-currency-name">{% if current_lang == "EN" %}PAYMENT IN USD{% else %}ОПЛАТА В USD{% endif %}</div>
+    <!-- Карта USD — Paddle (всегда показывается) -->
+    <div class="plan-card selected" onclick="selectPlan('card_usd', this)">
+      <div class="plan-currency-flag">💳</div>
+      <div class="plan-currency-name">{% if current_lang == "EN" %}CARD · USD{% else %}КАРТА · USD{% endif %}</div>
       <div class="plan-price">
         <div class="plan-price-symbol">$</div>
         <div class="plan-price-amount">19.99</div>
       </div>
       <div class="plan-price-period">{% if current_lang == "EN" %}/ MONTH{% else %}/ МЕСЯЦ{% endif %}</div>
-      <div class="plan-desc">{% if current_lang == "EN" %}Visa / Mastercard / Apple Pay{% else %}Visa / Mastercard / Apple Pay{% endif %}</div>
+      <div class="plan-desc">Visa / Mastercard · {% if current_lang == "EN" %}All countries{% else %}Все страны{% endif %}</div>
     </div>
-    {% endif %}
-    <div class="plan-card" onclick="selectPlan('eur', this)">
-      <div class="plan-currency-flag">🇪🇺</div>
-      <div class="plan-currency-name">{% if current_lang == "EN" %}PAYMENT IN EUR{% else %}ОПЛАТА В EUR{% endif %}</div>
+    <!-- Карта EUR — Paddle -->
+    <div class="plan-card" onclick="selectPlan('card_eur', this)">
+      <div class="plan-currency-flag">💳</div>
+      <div class="plan-currency-name">{% if current_lang == "EN" %}CARD · EUR{% else %}КАРТА · EUR{% endif %}</div>
       <div class="plan-price">
         <div class="plan-price-symbol">€</div>
         <div class="plan-price-amount">19.99</div>
       </div>
       <div class="plan-price-period">{% if current_lang == "EN" %}/ MONTH{% else %}/ МЕСЯЦ{% endif %}</div>
-      <div class="plan-desc">{% if current_lang == "EN" %}Visa / Mastercard / SEPA{% else %}Visa / Mastercard / SEPA{% endif %}</div>
+      <div class="plan-desc">Visa / Mastercard · SEPA</div>
     </div>
-    <div class="plan-card selected" data-plan="card"
-     onclick="document.querySelectorAll('.plan-card').forEach(c=>c.classList.remove('selected'));this.classList.add('selected');"
-     style="border-color:rgba(0,229,255,0.4);background:rgba(0,229,255,0.05);">
-  <div class="plan-icon">💳</div>
-  <div class="plan-currency-name">VISA / MASTERCARD</div>
-  <div class="plan-currency-sub">Любая карта · Весь мир</div>
-  <div class="plan-fee">Комиссия 5%</div>
-</div>
-<div class="plan-card" onclick="selectPlan('crypto', this)">
+    <!-- Крипто -->
+    <div class="plan-card" onclick="selectPlan('crypto', this)">
       <div class="plan-currency-flag" style="font-size:20px;">₿</div>
       <div class="plan-currency-name">{% if current_lang == "EN" %}CRYPTO · USDT · BTC{% else %}CRYPTO · USDT · BTC{% endif %}</div>
       <div class="plan-price">
@@ -408,7 +401,7 @@ canvas#bg { position: fixed; inset: 0; z-index: 0; opacity: 0.08; pointer-events
 </div><!-- /page -->
 
 <script>
-let _selectedCurrency = '{{ "usd" if stripe_configured else "crypto" }}';
+let _selectedCurrency = 'card_usd';  // Paddle card USD default
 
 function selectPlan(currency, el) {
   _selectedCurrency = currency;
@@ -425,6 +418,24 @@ async function subscribe() {
   const btn = document.getElementById('cta-btn');
   btn.classList.add('loading'); btn.disabled = true;
   try {
+    // Paddle card payment (USD or EUR)
+    if (_selectedCurrency === 'card_usd' || _selectedCurrency === 'card_eur') {
+      const paddleCur = _selectedCurrency === 'card_eur' ? 'EUR' : 'USD';
+      const r = await fetch('/api/paddle/checkout', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({currency: paddleCur})
+      });
+      const d = await r.json();
+      if (d.url) {
+        window.open(d.url, '_blank');
+        btn.classList.remove('loading'); btn.disabled = false;
+        return;
+      }
+      alert(d.error || 'Ошибка создания платежа. Попробуйте ещё раз.');
+      btn.classList.remove('loading'); btn.disabled = false;
+      return;
+    }
     // Crypto оплата
     if (_selectedCurrency === 'crypto') {
       // Выбор монеты

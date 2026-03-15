@@ -46,6 +46,18 @@ except ImportError as e:
 from flask import (Flask, render_template, request, jsonify,
                    session, redirect, url_for, Response, stream_with_context)
 
+# ── S3 Backup (Timeweb S3 для хранения БД) ───────────────────────────────────
+try:
+    from s3_backup import (
+        restore_if_needed, upload_db,
+        start_s3_sync_scheduler, _is_configured as _s3_configured
+    )
+except ImportError:
+    def restore_if_needed(db_path): return False
+    def upload_db(db_path):         return False
+    def start_s3_sync_scheduler(*a, **k): pass
+    def _s3_configured():           return False
+
 # ── Stripe payments ──────────────────────────────────────────────────────────
 try:
     from stripe_payments import (
@@ -2823,6 +2835,9 @@ def api_close_trade(trade_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ── Восстановление БД с S3 при старте (если нужно) ───────────────────────────
+restore_if_needed(DB_PATH)
+
 _init_db()
 _init_users_db()
 
@@ -2842,6 +2857,7 @@ if _portfolio_ready:
 # Запускаем полную очистку всех таблиц (signals + trades + screener + error_log)
 _start_full_cleanup_scheduler(DB_PATH)
 _start_db_backup_scheduler()   # автобэкап в Telegram каждые 6ч
+start_s3_sync_scheduler(DB_PATH, interval_hours=6)  # синхронизация с S3
 threading.Thread(target=_warm_cache, daemon=True).start()
 
 
@@ -3312,10 +3328,16 @@ def admin_storage_stats():
 @_require_admin
 def admin_db_backup():
     """Ручной бэкап БД в Telegram."""
-    ok = _backup_db_to_telegram()
-    if ok:
-        return jsonify({"status": "OK", "message": "БД отправлена в Telegram"})
-    return jsonify({"error": "Бэкап не удался — проверь TELEGRAM_TOKEN_TERMINAL и ADMIN_CHAT_ID"}), 500
+    tg_ok = _backup_db_to_telegram()
+    s3_ok = upload_db(DB_PATH)
+    if tg_ok or s3_ok:
+        return jsonify({
+            "status": "OK",
+            "telegram": tg_ok,
+            "s3": s3_ok,
+            "message": f"БД сохранена: {'Telegram ✅' if tg_ok else ''} {'S3 ✅' if s3_ok else ''}"
+        })
+    return jsonify({"error": "Бэкап не удался — проверь переменные окружения"}), 500
 
 
 @app.route('/admin/api/storage/cleanup', methods=['POST'])

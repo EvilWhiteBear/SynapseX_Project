@@ -1,0 +1,179 @@
+# -*- coding: utf-8 -*-
+"""
+s3_backup.py — Синхронизация signals.db с Timeweb S3
+──────────────────────────────────────────────────────
+• При старте сервера: скачивает БД с S3 если локальная пустая/отсутствует
+• Каждые 6 часов: загружает БД на S3
+• После каждого деплоя данные восстанавливаются автоматически!
+
+.env переменные:
+  S3_ENDPOINT   = https://s3.twcstorage.ru
+  S3_BUCKET     = synapsex-db
+  S3_REGION     = ru-1
+  S3_ACCESS_KEY = ваш_ключ
+  S3_SECRET_KEY = ваш_секрет
+"""
+import os
+import logging
+import threading
+
+log = logging.getLogger("S3_BACKUP")
+
+S3_ENDPOINT   = os.getenv("S3_ENDPOINT",   "https://s3.twcstorage.ru")
+S3_BUCKET     = os.getenv("S3_BUCKET",     "synapsex-db")
+S3_REGION     = os.getenv("S3_REGION",     "ru-1")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "")
+S3_DB_KEY     = "signals.db"   # имя файла в бакете
+
+_s3_client = None
+
+
+def _is_configured() -> bool:
+    return bool(S3_ACCESS_KEY and S3_SECRET_KEY and S3_BUCKET)
+
+
+def _get_client():
+    """Создаёт boto3 S3 клиент (singleton)."""
+    global _s3_client
+    if _s3_client:
+        return _s3_client
+    try:
+        import boto3
+        from botocore.config import Config
+        _s3_client = boto3.client(
+            "s3",
+            endpoint_url=S3_ENDPOINT,
+            aws_access_key_id=S3_ACCESS_KEY,
+            aws_secret_access_key=S3_SECRET_KEY,
+            region_name=S3_REGION,
+            config=Config(
+                connect_timeout=10,
+                read_timeout=30,
+                retries={"max_attempts": 3}
+            )
+        )
+        return _s3_client
+    except ImportError:
+        log.error("[S3] boto3 не установлен! Добавь в requirements.txt: boto3")
+        return None
+    except Exception as e:
+        log.error(f"[S3] Ошибка создания клиента: {e}")
+        return None
+
+
+def upload_db(db_path: str) -> bool:
+    """Загружает signals.db на S3. Возвращает True если успешно."""
+    if not _is_configured():
+        return False
+    if not os.path.exists(db_path):
+        log.warning(f"[S3] Файл не найден: {db_path}")
+        return False
+
+    client = _get_client()
+    if not client:
+        return False
+
+    try:
+        db_size = os.path.getsize(db_path)
+        client.upload_file(
+            db_path,
+            S3_BUCKET,
+            S3_DB_KEY,
+            ExtraArgs={"ContentType": "application/octet-stream"}
+        )
+        log.info(f"[S3] ✅ БД загружена на S3: {db_size // 1024}KB → s3://{S3_BUCKET}/{S3_DB_KEY}")
+        return True
+    except Exception as e:
+        log.error(f"[S3] ❌ Ошибка загрузки: {e}")
+        return False
+
+
+def download_db(db_path: str) -> bool:
+    """
+    Скачивает signals.db с S3.
+    Вызывается при старте если локальная БД пустая/отсутствует.
+    Возвращает True если успешно восстановлена.
+    """
+    if not _is_configured():
+        return False
+
+    client = _get_client()
+    if not client:
+        return False
+
+    try:
+        # Проверяем что файл есть на S3
+        response = client.head_object(Bucket=S3_BUCKET, Key=S3_DB_KEY)
+        s3_size = response.get("ContentLength", 0)
+
+        if s3_size == 0:
+            log.info("[S3] БД на S3 пустая — пропускаем восстановление")
+            return False
+
+        # Создаём директорию если нужно
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+
+        # Скачиваем
+        client.download_file(S3_BUCKET, S3_DB_KEY, db_path)
+        local_size = os.path.getsize(db_path)
+        log.info(f"[S3] ✅ БД восстановлена с S3: {local_size // 1024}KB ← s3://{S3_BUCKET}/{S3_DB_KEY}")
+        return True
+
+    except client.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            log.info("[S3] БД на S3 не найдена — первый запуск, создаём новую")
+        else:
+            log.error(f"[S3] Ошибка проверки S3: {e}")
+        return False
+    except Exception as e:
+        log.error(f"[S3] ❌ Ошибка скачивания: {e}")
+        return False
+
+
+def restore_if_needed(db_path: str) -> bool:
+    """
+    Проверяет нужно ли восстановление и делает его.
+    Вызывается при старте сервера ПЕРЕД init_db().
+    Логика:
+    - Если локальная БД отсутствует → скачать с S3
+    - Если локальная БД < 10KB (свежая/пустая) → скачать с S3
+    - Если локальная БД нормальная → оставить как есть
+    """
+    if not _is_configured():
+        log.info("[S3] S3 не настроен — пропускаем восстановление")
+        return False
+
+    local_exists = os.path.exists(db_path)
+    local_size   = os.path.getsize(db_path) if local_exists else 0
+
+    if not local_exists or local_size < 10 * 1024:  # < 10KB = пустая/новая
+        log.info(f"[S3] Локальная БД {'отсутствует' if not local_exists else f'мала ({local_size}B)'} — восстанавливаем с S3...")
+        return download_db(db_path)
+    else:
+        log.info(f"[S3] Локальная БД OK ({local_size // 1024}KB) — восстановление не нужно")
+        return False
+
+
+def start_s3_sync_scheduler(db_path: str, interval_hours: int = 6):
+    """
+    Запускает фоновый поток который каждые N часов
+    загружает БД на S3.
+    """
+    if not _is_configured():
+        log.info("[S3] S3 не настроен — планировщик не запускается")
+        return
+
+    def _scheduler():
+        import time as _time
+        # Первый бэкап через 2 минуты после старта
+        _time.sleep(120)
+        while True:
+            upload_db(db_path)
+            _time.sleep(interval_hours * 3600)
+
+    t = threading.Thread(target=_scheduler, daemon=True, name="S3SyncScheduler")
+    t.start()
+    log.info(f"[S3] Планировщик синхронизации запущен (каждые {interval_hours}ч → S3)")

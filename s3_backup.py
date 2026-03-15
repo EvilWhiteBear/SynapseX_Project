@@ -135,25 +135,54 @@ def download_db(db_path: str) -> bool:
 
 def restore_if_needed(db_path: str) -> bool:
     """
-    Проверяет нужно ли восстановление и делает его.
-    Вызывается при старте сервера ПЕРЕД init_db().
+    Восстанавливает БД с S3 при старте сервера.
     Логика:
-    - Если локальная БД отсутствует → скачать с S3
-    - Если локальная БД < 10KB (свежая/пустая) → скачать с S3
-    - Если локальная БД нормальная → оставить как есть
+    - S3 не настроен → пропускаем
+    - Файла нет локально → качаем с S3
+    - Локальный файл < 8KB (пустой после деплоя) → качаем с S3
+    - S3 файл БОЛЬШЕ локального → качаем с S3 (более актуальный)
+    - Иначе → оставляем локальный
     """
     if not _is_configured():
         log.info("[S3] S3 не настроен — пропускаем восстановление")
         return False
 
+    client = _get_client()
+    if not client:
+        return False
+
     local_exists = os.path.exists(db_path)
     local_size   = os.path.getsize(db_path) if local_exists else 0
 
-    if not local_exists or local_size < 10 * 1024:  # < 10KB = пустая/новая
-        log.info(f"[S3] Локальная БД {'отсутствует' if not local_exists else f'мала ({local_size}B)'} — восстанавливаем с S3...")
+    # Проверяем размер файла на S3
+    try:
+        response = client.head_object(Bucket=S3_BUCKET, Key=S3_DB_KEY)
+        s3_size  = response.get("ContentLength", 0)
+        log.info(f"[S3] Локальная БД: {local_size}B | S3: {s3_size}B")
+    except Exception as e:
+        log.info(f"[S3] Файл на S3 не найден или ошибка: {e}")
+        return False
+
+    # Скачиваем если:
+    # 1. Локальной нет вообще
+    # 2. Локальная пустая (< 8KB — свежий деплой)
+    # 3. S3 версия больше локальной (более свежие данные)
+    should_restore = (
+        not local_exists or
+        local_size < 8 * 1024 or
+        s3_size > local_size
+    )
+
+    if should_restore:
+        reason = (
+            "файл отсутствует" if not local_exists else
+            f"локальный пустой ({local_size}B)" if local_size < 8*1024 else
+            f"S3 новее ({s3_size}B > {local_size}B)"
+        )
+        log.info(f"[S3] Восстанавливаем БД: {reason}")
         return download_db(db_path)
     else:
-        log.info(f"[S3] Локальная БД OK ({local_size // 1024}KB) — восстановление не нужно")
+        log.info(f"[S3] Локальная БД актуальна ({local_size//1024}KB) — S3 не нужен")
         return False
 
 

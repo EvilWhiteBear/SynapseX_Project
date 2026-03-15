@@ -63,6 +63,21 @@ except ImportError:
     def handle_webhook(*a, **k):          return {"error": "webhook недоступен"}
     def get_subscription_info(*a, **k):   return {"is_premium": False, "status": "none"}
 
+# ── Email уведомления ────────────────────────────────────────────────────────
+try:
+    from email_service import (
+        send_premium_activated, send_trial_activated,
+        send_trial_expiring, send_premium_expiring,
+        _is_configured as _email_configured
+    )
+    log.info("[EMAIL] email_service.py загружен ✓") if 'log' in dir() else None
+except ImportError:
+    def send_premium_activated(*a, **k): return False
+    def send_trial_activated(*a, **k):   return False
+    def send_trial_expiring(*a, **k):    return False
+    def send_premium_expiring(*a, **k):  return False
+    def _email_configured():             return False
+
 # ── NOWPayments (Crypto USDT/BTC) ─────────────────────────────────────────────
 _nowpayments_ready = False
 try:
@@ -443,6 +458,7 @@ def _init_users_db():
                     ref_code           TEXT    DEFAULT '',
                     referred_by        TEXT    DEFAULT '',
                     premium_until      TEXT    DEFAULT '',
+                    trial_until        TEXT    DEFAULT '',
                     telegram_chat_id   TEXT    DEFAULT '',
                     tg_alerts_enabled  INTEGER DEFAULT 1
                 )
@@ -459,6 +475,7 @@ def _init_users_db():
                 ('premium_until',      "TEXT DEFAULT ''"),
                 ('telegram_chat_id',   "TEXT DEFAULT ''"),
                 ('tg_alerts_enabled',  'INTEGER DEFAULT 1'),
+                ('trial_until',        "TEXT DEFAULT ''"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
@@ -949,6 +966,51 @@ def _get_signal_limit(uid: str) -> int:
             return _SIGNAL_LIMITS["premium_daily_limit"] if is_prem else _SIGNAL_LIMITS["free_daily_limit"]
     except Exception:
         return _SIGNAL_LIMITS["free_daily_limit"]
+
+def activate_trial(uid: str, email: str = "", name: str = "") -> dict:
+    """
+    Активирует 3-дневный Trial для нового пользователя.
+    Вызывается автоматически при первом входе если ещё не было trial/premium.
+    """
+    from datetime import datetime, timezone, timedelta
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT is_premium, trial_until, premium_until FROM users WHERE uid=?",
+                (uid,)
+            ).fetchone()
+            if not row:
+                return {"error": "USER_NOT_FOUND"}
+
+            is_premium   = bool(row[0])
+            trial_until  = row[1] or ""
+            premium_until = row[2] or ""
+
+            # Не активируем если уже Premium или Trial был
+            if is_premium:
+                return {"status": "already_premium"}
+            if trial_until:
+                return {"status": "already_used"}
+
+            # Активируем trial на 3 дня
+            trial_end = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
+            conn.execute(
+                "UPDATE users SET trial_until=? WHERE uid=?",
+                (trial_end, uid)
+            )
+            conn.commit()
+
+        log.info(f"[TRIAL] ✅ Trial активирован для {uid} до {trial_end[:10]}")
+
+        # Отправляем email
+        if email:
+            send_trial_activated(email, name, trial_end)
+
+        return {"status": "activated", "trial_until": trial_end}
+    except Exception as e:
+        log.error(f"[TRIAL] Ошибка: {e}")
+        return {"error": str(e)}
+
 
 def _get_referral_bonus(uid: str) -> int:
     """Возвращает бонусные сигналы за рефералов: +1 за каждого (макс 10)."""

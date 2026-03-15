@@ -2177,6 +2177,20 @@ def auth_google_verify():
                 log.warning(f"[REF] referred_by error: {_re}")
 
         log.info(f"[AUTH] Google login: {email} ({uid[:8]}...)")
+
+        # Авто-активация Trial для новых пользователей
+        try:
+            with sqlite3.connect(DB_PATH) as _tc:
+                _tr = _tc.execute(
+                    "SELECT trial_until, is_premium FROM users WHERE uid=?", (uid,)
+                ).fetchone()
+            if _tr and not _tr[0] and not _tr[1]:
+                # Ни trial, ни premium — активируем trial
+                activate_trial(uid, email, name)
+                log.info(f"[TRIAL] Auto-trial активирован: {email}")
+        except Exception as _te:
+            log.warning(f"[TRIAL] Auto-trial error: {_te}")
+
         return jsonify({"status": "OK", "redirect": "/terminal", "name": name})
 
     except Exception as e:
@@ -3528,6 +3542,23 @@ def api_crypto_webhook():
         log.warning("[CRYPTO] Неверная IPN подпись")
         return jsonify({"error": "invalid_signature"}), 400
     result = handle_crypto_webhook(payload, DB_PATH)
+    # Отправляем email при активации Premium
+    if result.get("premium") and result.get("uid"):
+        try:
+            uid = result["uid"]
+            with sqlite3.connect(DB_PATH) as conn:
+                row = conn.execute(
+                    "SELECT email, name, premium_until FROM users WHERE uid=?", (uid,)
+                ).fetchone()
+            if row:
+                send_premium_activated(
+                    email=row[0] or "",
+                    name=row[1] or "",
+                    period_end=row[2] or "",
+                    method="crypto"
+                )
+        except Exception as _email_err:
+            log.warning(f"[EMAIL] Crypto webhook email error: {_email_err}")
     return jsonify(result), 200
 
 
@@ -3538,6 +3569,40 @@ def subscription_status():
         return jsonify({"is_premium": False, "status": "none"})
     info = get_subscription_info(DB_PATH, session['user_uid'])
     return jsonify(info)
+
+
+@app.route('/api/trial/activate', methods=['POST'])
+def api_activate_trial():
+    """
+    Активирует 3-дневный бесплатный Trial для нового пользователя.
+    Автоматически вызывается при первом входе.
+    """
+    uid = session.get('user_uid')
+    if not uid:
+        return jsonify({"error": "NOT_LOGGED_IN"}), 401
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT email, name, is_premium, trial_until FROM users WHERE uid=?", (uid,)
+            ).fetchone()
+        if not row:
+            return jsonify({"error": "USER_NOT_FOUND"}), 404
+
+        email        = row[0] or ""
+        name         = row[1] or ""
+        is_premium   = bool(row[2])
+        trial_until  = row[3] or ""
+
+        if is_premium:
+            return jsonify({"status": "already_premium"})
+        if trial_until:
+            return jsonify({"status": "already_used", "trial_until": trial_until})
+
+        result = activate_trial(uid, email, name)
+        return jsonify(result)
+    except Exception as e:
+        log.exception("/api/trial/activate error")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/stripe/webhook', methods=['POST'])

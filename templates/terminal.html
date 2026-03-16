@@ -1095,7 +1095,7 @@ async function entryMarketAuto() {
     const box = document.getElementById('chat-box');
     const lev  = document.getElementById('lev').value || 20;
     const marg = document.getElementById('marg').value || 100;
-    const tf   = selectedTF || '15m';
+    const tf   = window._selectedTF || '15m';
 
     box.innerHTML += `<div class="msg msg-u">⚡ ВХОД ПО РЫНКУ · ${currentAsset} · TF: ${tf.toUpperCase()} · ПЛЕЧО: ${lev}x</div>`;
     box.innerHTML += `<div class="msg msg-a" id="entry-loading"><span class="msg-a-tag">◈ QUANTUM CORE</span><span style="color:var(--ice);animation:pulse 1s infinite">⟳ АНАЛИЗ РЫНКА И ОПРЕДЕЛЕНИЕ НАПРАВЛЕНИЯ...</span></div>`;
@@ -1190,7 +1190,7 @@ async function entryMarket(direction) {
                 leverage:  parseInt(lev),
                 margin:    parseFloat(marg),
                 direction: direction,
-                timeframe: selectedTF || '15m'
+                timeframe: window._selectedTF || '15m'
             })
         });
         const data = await res.json();

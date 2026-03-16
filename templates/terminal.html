@@ -1115,7 +1115,56 @@ async function entryMarketAuto() {
         });
         const data = await res.json();
         document.getElementById('entry-loading')?.remove();
-        _renderEntryResult(data, box, lev, marg, 'AUTO');
+
+        if (data.error) {
+            box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">⚠ ${data.error || data.msg}</span></div>`;
+            box.scrollTop = box.scrollHeight;
+            return;
+        }
+
+        const autoDir = (data.raw_signal && data.raw_signal.direction) ? data.raw_signal.direction : 'AUTO';
+        let aiResponse = data.answer || '';
+        let riskHtml   = '';
+        if (data.raw_signal) {
+            const s = data.raw_signal;
+            const tp1Pct  = s.tp1_pct  || 0;
+            const tp2Pct  = s.tp2_pct  || 0;
+            const slPct   = s.sl_pct   || 0;
+            const rrRatio = s.rr_ratio || '1:2.5';
+            const entry   = parseFloat(s.entry) || 1;
+            const pSize   = parseInt(lev) * parseFloat(marg);
+            const coins   = pSize / entry;
+            const dir     = s.direction;
+            const prof1   = Math.abs(coins * (parseFloat(s.tp1) - entry) * (dir==='LONG'?1:-1));
+            const prof2   = Math.abs(coins * (parseFloat(s.tp2) - entry) * (dir==='LONG'?1:-1));
+            const loss    = Math.abs(coins * (parseFloat(s.sl)  - entry) * (dir==='LONG'?-1:1));
+            const prof3   = s.tp3 ? Math.abs(coins * (parseFloat(s.tp3) - entry) * (dir==='LONG'?1:-1)) : 0;
+            const tp3Pct  = s.tp3_pct || 0;
+            riskHtml = `
+                <div class="rc-block">
+                    <div class="rc-tag">MARKET ENTRY · RR ${rrRatio}</div>
+                    <div class="rc-row"><span>ТЕКУЩАЯ ЦЕНА</span><span style="color:#00e5ff">${data.price || s.entry}</span></div>
+                    <div class="rc-row"><span>TP1 PROFIT</span><span class="uv">+$${prof1.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp1Pct}%)</span></span></div>
+                    <div class="rc-row"><span>TP2 PROFIT</span><span class="uv" style="color:#b8ff00">+$${prof2.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp2Pct}%)</span></span></div>
+                    ${s.tp3 ? `<div class="rc-row"><span>TP3 PROFIT</span><span class="uv" style="color:#00e5ff">+$${prof3.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp3Pct}%)</span></span></div>` : ''}
+                    <div class="rc-row"><span>SL LOSS</span><span class="dv">−$${loss.toFixed(2)} <span style="font-size:10px;opacity:.7">(-${slPct}%)</span></span></div>
+                    ${s.fibo_key ? `<div class="rc-row"><span>FIBO ZONE</span><span style="color:#ffcc00">${s.fibo_key}</span></div>` : ''}
+                    ${s.smart_money ? `<div class="rc-row"><span>SMART MONEY</span><span style="color:#b89fff">${s.smart_money}</span></div>` : ''}
+                    ${s.liquidity ? `<div class="rc-row"><span>LIQUIDITY</span><span style="color:#00e5ff">${s.liquidity}</span></div>` : ''}
+                </div>`;
+        }
+
+        let formatted = (aiResponse)
+            .replace(/ВХОД В ПОЗИЦИЮ:/g,    '<br><b style="color:var(--acid)">ВХОД В ПОЗИЦИЮ:</b>')
+            .replace(/ТОЧКА ВХОДА:/g,        '<br><b style="color:var(--ice)">ТОЧКА ВХОДА:</b>')
+            .replace(/ТЕЙК-ПРОФИТ/g,         '<br><b style="color:#00ffcc">ТЕЙК-ПРОФИТ</b>')
+            .replace(/СТОП-ЛОСС:/g,          '<br><b style="color:#ff4466">СТОП-ЛОСС:</b>')
+            .replace(/УРОВЕНЬ ДОВЕРИЯ:/g,    '<br><b style="color:#ffcc00">УРОВЕНЬ ДОВЕРИЯ:</b>')
+            .replace(/полная аналитика:/gi,  '<br><b style="color:var(--ice)">◈ АНАЛИТИКА:</b><br>');
+
+        const disclaimer = `<div style="margin-top:12px;padding:14px 18px;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.25);font-family:'Share Tech Mono',monospace;font-size:12px;color:rgba(255,200,0,0.95);font-weight:600;">⚠️ НЕ ФИНАНСОВЫЙ СОВЕТ. Торгуйте осознанно.</div>`;
+
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ MARKET ENTRY · ${autoDir}</span>${riskHtml}${formatted}${disclaimer}</div>`;
     } catch(e) {
         document.getElementById('entry-loading')?.remove();
         box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">❌ ${e.message}</span></div>`;

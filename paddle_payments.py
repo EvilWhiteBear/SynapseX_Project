@@ -86,6 +86,9 @@ def create_checkout_url(uid: str, email: str,
             "items": [{"price_id": price_id, "quantity": 1}],
             "customer": {"email": email},
             "custom_data": {"uid": uid},
+            "checkout": {
+                "url": APP_BASE_URL + "/premium?paddle=success"
+            },
         }
 
         resp = requests.post(

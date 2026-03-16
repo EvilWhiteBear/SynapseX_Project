@@ -46,27 +46,6 @@ except ImportError as e:
 from flask import (Flask, render_template, request, jsonify,
                    session, redirect, url_for, Response, stream_with_context)
 
-# ── Paddle Payments (карты для Сербии и всего мира) ──────────────────────────
-try:
-    from paddle_payments import (
-        create_checkout_link, handle_paddle_webhook,
-        verify_webhook_signature as verify_paddle_signature,
-        init_paddle_db, get_paddle_status,
-        _is_configured as _paddle_configured,
-        PADDLE_CLIENT_TOKEN,
-    )
-    _paddle_ready = True
-    log.info("[PADDLE] paddle_payments.py загружен ✓")
-except ImportError as _pe:
-    _paddle_ready = False
-    PADDLE_CLIENT_TOKEN = ""
-    def create_checkout_link(*a, **k): return {"error": "Paddle не установлен"}
-    def handle_paddle_webhook(*a, **k): return {"status": "disabled"}
-    def verify_paddle_signature(*a, **k): return True
-    def init_paddle_db(*a, **k): pass
-    def get_paddle_status(*a, **k): return {"is_premium": False}
-    def _paddle_configured(): return False
-
 # ── Paddle Payments (карты Visa/MC для всех стран включая Сербию) ────────────
 try:
     from paddle_payments import (
@@ -74,15 +53,15 @@ try:
         handle_paddle_webhook, verify_webhook_signature as verify_paddle_sig,
         get_paddle_status, _paddle_configured
     )
-    log.info("[PADDLE] paddle_payments.py загружен ✓") if 'log' in dir() else None
+    _paddle_ready = True
 except ImportError:
+    _paddle_ready = False
     def init_paddle_db(*a, **k): pass
     def create_paddle_checkout(*a, **k): return {"error": "Paddle не установлен"}
     def handle_paddle_webhook(*a, **k): return {}
     def verify_paddle_sig(*a, **k): return True
     def get_paddle_status(*a, **k): return {}
     _paddle_configured = False
-
 # ── S3 Backup (Timeweb S3 для хранения БД) ───────────────────────────────────
 try:
     from s3_backup import (

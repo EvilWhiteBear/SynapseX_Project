@@ -1291,6 +1291,30 @@ def api_entry():
             except Exception as _pf_err:
                 log.warning(f"[PORTFOLIO] Entry авто-запись: {_pf_err}")
 
+        # Нормализация raw_signal — гарантируем наличие всех полей для фронтенда
+        signal.setdefault('entry', current_price)
+        _ep   = float(signal.get('entry', current_price))
+        _tp1p = float(signal.get('tp1', 0))
+        _tp2p = float(signal.get('tp2', 0))
+        _slp  = float(signal.get('sl',  0))
+        _t1pc = float(signal.get('tp1_pct', 0))
+        _t2pc = float(signal.get('tp2_pct', 0))
+        _slpc = float(signal.get('sl_pct',  0))
+        _ddir = signal.get('direction', 'LONG')
+        # tp3 = TP2 + (TP2 - entry), ~3x RR
+        if not signal.get('tp3') and _tp2p and _ep:
+            _gap = abs(_tp2p - _ep)
+            signal['tp3'] = round(_tp2p + _gap if _ddir == 'LONG' else _tp2p - _gap, 6)
+        if not signal.get('tp3_pct') and _t2pc:
+            signal['tp3_pct'] = round(_t2pc * 1.5, 1)
+        if not signal.get('rr2_ratio') and _slpc:
+            signal['rr2_ratio'] = f"1:{round(_t2pc / max(_slpc, 0.01), 1)}"
+        signal.setdefault('tp1_pct',   _t1pc)
+        signal.setdefault('tp2_pct',   _t2pc)
+        signal.setdefault('sl_pct',    _slpc)
+        signal.setdefault('rr_ratio',  '1:2.5')
+        signal.setdefault('rr2_ratio', '1:5.0')
+
         return jsonify({
             "answer":     ultimatum_formatter(ai_text),
             "raw_signal": signal,

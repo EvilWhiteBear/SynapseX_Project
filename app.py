@@ -3673,7 +3673,8 @@ def premium_page():
     return render_template('premium.html',
                            stripe_configured=stripe_ok,
                            crypto_configured=crypto_ok,
-                           current_lang=lang)
+                           current_lang=lang,
+                           paddle_client_token=os.getenv('PADDLE_CLIENT_TOKEN', ''))
 
 
 @app.route('/premium/success')

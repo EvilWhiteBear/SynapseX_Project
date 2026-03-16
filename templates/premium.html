@@ -195,6 +195,12 @@ canvas#bg { position: fixed; inset: 0; z-index: 0; opacity: 0.08; pointer-events
   .header { padding: 0 20px; }
 }
 </style>
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script>
+Paddle.Setup({
+  token: '{{ paddle_client_token }}'
+});
+</script>
 </head>
 <body>
 <style>
@@ -414,26 +420,35 @@ function selectPlan(currency, el) {
   document.getElementById('cta-btn').querySelector('.btn-text').textContent = labels[currency] || 'ОФОРМИТЬ PREMIUM';
 }
 
+async function startPaddlePayment() {
+  const currency = _selectedCurrency === 'card_eur' ? 'EUR' : 'USD';
+  try {
+    const r = await fetch('/api/paddle/checkout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({currency})
+    });
+    const d = await r.json();
+    if (d.transaction_id) {
+      Paddle.Checkout.open({
+        transactionId: d.transaction_id
+      });
+    } else {
+      alert(d.error || 'Ошибка оплаты');
+    }
+  } catch(e) {
+    alert('Ошибка: ' + e.message);
+  }
+}
+
 async function subscribe() {
   const btn = document.getElementById('cta-btn');
   btn.classList.add('loading'); btn.disabled = true;
   try {
     // Paddle card payment (USD or EUR)
     if (_selectedCurrency === 'card_usd' || _selectedCurrency === 'card_eur') {
-      const paddleCur = _selectedCurrency === 'card_eur' ? 'EUR' : 'USD';
-      const r = await fetch('/api/paddle/checkout', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({currency: paddleCur})
-      });
-      const d = await r.json();
-      if (d.url) {
-        window.open(d.url, '_blank');
-        btn.classList.remove('loading'); btn.disabled = false;
-        return;
-      }
-      alert(d.error || 'Ошибка создания платежа. Попробуйте ещё раз.');
       btn.classList.remove('loading'); btn.disabled = false;
+      await startPaddlePayment();
       return;
     }
     // Crypto оплата

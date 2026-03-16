@@ -84,10 +84,9 @@ def create_checkout_url(uid: str, email: str,
     try:
         payload = {
             "items": [{"price_id": price_id, "quantity": 1}],
+            "customer": {"email": email},
             "custom_data": {"uid": uid},
         }
-        if email:
-            payload["customer"] = {"email": email}
 
         resp = requests.post(
             f"{PADDLE_API_BASE}/transactions",

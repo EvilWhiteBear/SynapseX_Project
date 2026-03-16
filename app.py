@@ -1291,29 +1291,48 @@ def api_entry():
             except Exception as _pf_err:
                 log.warning(f"[PORTFOLIO] Entry авто-запись: {_pf_err}")
 
-        # Нормализация raw_signal — гарантируем наличие всех полей для фронтенда
+        # Нормализация raw_signal — гарантируем все поля для фронтенда
         signal.setdefault('entry', current_price)
-        _ep   = float(signal.get('entry', current_price))
-        _tp1p = float(signal.get('tp1', 0))
-        _tp2p = float(signal.get('tp2', 0))
-        _slp  = float(signal.get('sl',  0))
-        _t1pc = float(signal.get('tp1_pct', 0))
-        _t2pc = float(signal.get('tp2_pct', 0))
-        _slpc = float(signal.get('sl_pct',  0))
+        signal.setdefault('direction', direction if direction in ('LONG','SHORT') else 'LONG')
+        _ep   = float(signal.get('entry') or current_price)
         _ddir = signal.get('direction', 'LONG')
-        # tp3 = TP2 + (TP2 - entry), ~3x RR
+        _tp1p = float(signal.get('tp1') or 0)
+        _tp2p = float(signal.get('tp2') or 0)
+        _slp  = float(signal.get('sl')  or 0)
+        # Если tp1/tp2/sl равны нулю — вычисляем из current_price и leverage
+        if not _tp1p or not _tp2p or not _slp:
+            _sl_perc = max(0.008, min(0.025, 0.7 / max(lev, 1)))
+            _tp_perc = _sl_perc * 2.5
+            if _ddir == 'LONG':
+                signal['tp1'] = round(_ep * (1 + _tp_perc),     6)
+                signal['tp2'] = round(_ep * (1 + _tp_perc * 2), 6)
+                signal['sl']  = round(_ep * (1 - _sl_perc),     6)
+            else:
+                signal['tp1'] = round(_ep * (1 - _tp_perc),     6)
+                signal['tp2'] = round(_ep * (1 - _tp_perc * 2), 6)
+                signal['sl']  = round(_ep * (1 + _sl_perc),     6)
+            signal['entry']    = round(_ep, 6)
+            signal['tp1_pct']  = round(_tp_perc * 2.5 * lev * 100, 1)
+            signal['tp2_pct']  = round(_tp_perc * 5.0 * lev * 100, 1)
+            signal['sl_pct']   = round(_sl_perc * lev * 100, 1)
+            signal['rr_ratio'] = f"1:{round(signal['tp1_pct'] / max(signal['sl_pct'], 0.01), 1)}"
+            signal['rr2_ratio']= f"1:{round(signal['tp2_pct'] / max(signal['sl_pct'], 0.01), 1)}"
+            _tp2p = float(signal['tp2'])
+        _t1pc = float(signal.get('tp1_pct') or 0)
+        _t2pc = float(signal.get('tp2_pct') or 0)
+        _slpc = float(signal.get('sl_pct')  or 0)
+        # tp3 = TP2 + (TP2 - entry)
         if not signal.get('tp3') and _tp2p and _ep:
             _gap = abs(_tp2p - _ep)
             signal['tp3'] = round(_tp2p + _gap if _ddir == 'LONG' else _tp2p - _gap, 6)
         if not signal.get('tp3_pct') and _t2pc:
             signal['tp3_pct'] = round(_t2pc * 1.5, 1)
-        if not signal.get('rr2_ratio') and _slpc:
-            signal['rr2_ratio'] = f"1:{round(_t2pc / max(_slpc, 0.01), 1)}"
+        signal.setdefault('rr2_ratio', f"1:{round(_t2pc / max(_slpc, 0.01), 1)}" if _slpc else '1:5.0')
+        signal.setdefault('rr_ratio',  '1:2.5')
         signal.setdefault('tp1_pct',   _t1pc)
         signal.setdefault('tp2_pct',   _t2pc)
         signal.setdefault('sl_pct',    _slpc)
-        signal.setdefault('rr_ratio',  '1:2.5')
-        signal.setdefault('rr2_ratio', '1:5.0')
+        signal.setdefault('tp3_pct',   round(_t2pc * 1.5, 1))
 
         return jsonify({
             "answer":     ultimatum_formatter(ai_text),
@@ -3422,8 +3441,7 @@ def admin_storage_cleanup():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/api/public/stats')
-
+@app.route('/api/promo/apply', methods=['POST'])
 def apply_promo():
     if not session.get('user_uid'):
         return jsonify({"error": "NOT_LOGGED_IN"}), 401

@@ -477,35 +477,110 @@ class QuantumAnalyzer:
             atr_val = self._atr(highs, lows, prices)
             _lev    = max(leverage, 1)
 
-            # ATR-based SL: 1.5x ATR, но не менее 0.8% и не более 2.5% от цены
+            # ── ФЬЮЧЕРСНЫЙ SL/TP — адаптивный на основе ATR + ликвидности ──────
+            # Логика: SL ставим ЗА ближайший уровень ликвидности (свинг хай/лоу)
+            # Минимум 1.5% от цены (защита от шума), максимум 6%
+
+            # Вычисляем свинговые уровни (последние 20 свечей)
+            swing_high = max(highs[-20:]) if len(highs) >= 20 else max(highs)
+            swing_low  = min(lows[-20:])  if len(lows)  >= 20 else min(lows)
+
             if atr_val > 0:
-                sl_dist = atr_val * 1.5
-                sl_perc = min(max(sl_dist / price, 0.008), 0.025)
+                # ATR × 2.5 = достаточно широко для фьючерсов
+                sl_dist_atr = atr_val * 2.5
+
+                # Дистанция до ближайшего свинг уровня + буфер 0.5 ATR
+                if direction == "LONG":
+                    sl_dist_swing = (price - swing_low) + atr_val * 0.5
+                else:
+                    sl_dist_swing = (swing_high - price) + atr_val * 0.5
+
+                # Берём максимум из ATR и свинг-уровня (защита от ложных пробоев)
+                sl_dist = max(sl_dist_atr, sl_dist_swing * 0.6)
+                sl_perc = min(max(sl_dist / price, 0.015), 0.06)
             else:
-                sl_perc = max(0.008, min(0.025, 0.7 / _lev))
-            tp_perc = sl_perc * 2.5  # RR 1:2.5
+                sl_perc = max(0.02, min(0.06, 1.5 / _lev))
+
+            # Адаптивные TP на основе Фибоначчи расширений
+            # TP1 = 1:1.5 RR (быстрый, 50% позиции)
+            # TP2 = 1:3.0 RR (основная цель, 30% позиции)
+            # TP3 = 1:5.0 RR (максимальная цель, 20% позиции)
+            tp1_perc = sl_perc * 1.5   # Фибо 1.618
+            tp2_perc = sl_perc * 3.0   # Фибо 2.618
+            tp3_perc = sl_perc * 5.0   # Фибо 4.236
 
             if direction == "LONG":
-                tp1 = round(price * (1 + tp_perc), 6)
-                tp2 = round(price * (1 + tp_perc * 2.0), 6)
+                tp1 = round(price * (1 + tp1_perc), 6)
+                tp2 = round(price * (1 + tp2_perc), 6)
+                tp3 = round(price * (1 + tp3_perc), 6)
                 sl  = round(price * (1 - sl_perc), 6)
             else:
-                tp1 = round(price * (1 - tp_perc), 6)
-                tp2 = round(price * (1 - tp_perc * 2.0), 6)
+                tp1 = round(price * (1 - tp1_perc), 6)
+                tp2 = round(price * (1 - tp2_perc), 6)
+                tp3 = round(price * (1 - tp3_perc), 6)
                 sl  = round(price * (1 + sl_perc), 6)
 
-            tp1_pct  = round(tp_perc * _lev * 100, 1)
-            tp2_pct  = round(tp_perc * 2.0 * _lev * 100, 1)
-            sl_pct   = round(sl_perc * _lev * 100, 1)
+            tp1_pct  = round(tp1_perc * _lev * 100, 1)
+            tp2_pct  = round(tp2_perc * _lev * 100, 1)
+            tp3_pct  = round(tp3_perc * _lev * 100, 1)
+            sl_pct   = round(sl_perc  * _lev * 100, 1)
             rr1      = round(tp1_pct / max(sl_pct, 0.01), 1)
             rr2      = round(tp2_pct / max(sl_pct, 0.01), 1)
+            rr3      = round(tp3_pct / max(sl_pct, 0.01), 1)
             rr_ratio = f"1:{rr1}"
             rr2_ratio= f"1:{rr2}"
+            rr3_ratio= f"1:{rr3}"
 
             # ── Дополнительные поля ───────────────────────────────────────────
             obv_trend_val = self._obv_trend(prices, vols)
             sr_primary    = self._sr_levels(highs, lows)
 
+            # ── SMART MONEY CONCEPTS (SMC) ─────────────────────────────────────
+            # Liquidity sweep detection
+            recent_high = max(highs[-20:]) if len(highs) >= 20 else max(highs)
+            recent_low  = min(lows[-20:])  if len(lows)  >= 20 else min(lows)
+            price_range = recent_high - recent_low
+
+            # Equal highs/lows = liquidity pools
+            eq_highs = sum(1 for h in highs[-10:] if abs(h - recent_high) / recent_high < 0.002)
+            eq_lows  = sum(1 for l in lows[-10:]  if abs(l - recent_low)  / recent_low  < 0.002)
+
+            smart_money = ""
+            liquidity   = ""
+
+            if direction == "LONG":
+                if eq_lows >= 2:
+                    smart_money = "Sweep buy-side liquidity 🎯"
+                    conf_score += 1
+                    conf_reasons.append("Smart Money: Buy-side liquidity sweep ✓")
+                elif price < recent_low + price_range * 0.2:
+                    smart_money = "Discount zone (below 20% range)"
+                    liquidity   = f"Liq. pool near {round(recent_low, 4)}"
+                    conf_score += 1
+                    conf_reasons.append("Discount zone — institutional entry ✓")
+            else:
+                if eq_highs >= 2:
+                    smart_money = "Sweep sell-side liquidity 🎯"
+                    conf_score += 1
+                    conf_reasons.append("Smart Money: Sell-side liquidity sweep ✓")
+                elif price > recent_high - price_range * 0.2:
+                    smart_money = "Premium zone (top 20% range)"
+                    liquidity   = f"Liq. pool near {round(recent_high, 4)}"
+                    conf_score += 1
+                    conf_reasons.append("Premium zone — institutional short ✓")
+
+            # Order blocks (simplified: large candle body before reversal)
+            if len(prices) >= 5:
+                bodies = [abs(prices[i] - opens[i] if i < len(opens) else 0)
+                          for i in range(-5, -1)]
+                avg_body = sum(bodies) / len(bodies) if bodies else 0
+                last_body = abs(prices[-1] - (opens[-1] if opens else prices[-1]))
+                if last_body > avg_body * 1.8:
+                    smart_money += " | Order Block detected"
+                    conf_score += 1
+                    conf_reasons.append("Order Block (large candle body) ✓")
+
+            fibo_key = ""
             fibo_dict = {
                 "0.236": round(g_high - 0.236 * diff, 6),
                 "0.382": round(g_high - 0.382 * diff, 6),
@@ -576,12 +651,17 @@ class QuantumAnalyzer:
                 "direction":        direction,
                 "entry":            round(price, 6),
                 "tp1":              tp1, "tp2": tp2, "sl": sl,
-                "tp1_pct":          tp1_pct, "tp2_pct": tp2_pct, "sl_pct": sl_pct,
-                "rr_ratio":         rr_ratio, "rr2_ratio": rr2_ratio,
+                "tp1_pct":          tp1_pct, "tp2_pct": tp2_pct, "tp3": tp3, "tp3_pct": tp3_pct,
+                "sl_pct": sl_pct,
+                "rr_ratio": rr_ratio, "rr2_ratio": rr2_ratio,
+                "rr3_ratio": rr3_ratio if 'rr3_ratio' in locals() else "1:0",
                 "leverage":         _lev,
                 "bullish_score":    bs,
                 "atr":              atr_val,
                 "obv_trend":        obv_trend_val,
+                "smart_money":      smart_money if 'smart_money' in locals() else "",
+                "liquidity":        liquidity   if 'liquidity'   in locals() else "",
+                "fibo_key":         fibo_key    if 'fibo_key'    in locals() else "",
                 "liquidity_sweep":  liq_sweep,
                 "stochastic":       stoch,
                 "williams_r":       wpr,

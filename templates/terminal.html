@@ -813,13 +813,13 @@ body { padding-bottom: 28px; }
       </div>
       <!-- Быстрые кнопки режимов -->
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <button onclick="entryMarket('LONG')" class="btn-mode btn-long">
-          ▲ LONG МАРКЕТ
+        <button onclick="entryMarketAuto()" class="btn-mode btn-optimal"
+                style="flex:1;background:rgba(184,255,0,0.08);border-color:rgba(184,255,0,0.4);
+                       color:#b8ff00;font-size:11px;">
+          ⚡ ВХОД ПО РЫНКУ
         </button>
-        <button onclick="entryMarket('SHORT')" class="btn-mode btn-short">
-          ▼ SHORT МАРКЕТ
-        </button>
-        <button onclick="findOptimalEntry()" class="btn-mode btn-optimal">
+        <button onclick="findOptimalEntry()" class="btn-mode btn-optimal"
+                style="flex:1;">
           ◈ ТОЧКА ВХОДА
         </button>
       </div>
@@ -1090,6 +1090,39 @@ async function updateWatchlistPrices() {
    ЛОГИКА ЧАТА И НЕЙРОСЕТИ
    ───────────────────────────────────── */
 // ── Режим "Войти по маркету" (LONG или SHORT прямо сейчас) ───────────────────
+async function entryMarketAuto() {
+    // Авто-определение направления по текущему тренду
+    const box = document.getElementById('chat-box');
+    const lev  = document.getElementById('lev').value || 20;
+    const marg = document.getElementById('marg').value || 100;
+    const tf   = selectedTF || '15m';
+
+    box.innerHTML += `<div class="msg msg-u">⚡ ВХОД ПО РЫНКУ · ${currentAsset} · TF: ${tf.toUpperCase()} · ПЛЕЧО: ${lev}x</div>`;
+    box.innerHTML += `<div class="msg msg-a" id="entry-loading"><span class="msg-a-tag">◈ QUANTUM CORE</span><span style="color:var(--ice);animation:pulse 1s infinite">⟳ АНАЛИЗ РЫНКА И ОПРЕДЕЛЕНИЕ НАПРАВЛЕНИЯ...</span></div>`;
+    box.scrollTop = box.scrollHeight;
+
+    try {
+        const res = await fetch('/api/entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asset:     currentAsset,
+                leverage:  parseInt(lev),
+                margin:    parseFloat(marg),
+                direction: 'AUTO',
+                timeframe: tf
+            })
+        });
+        const data = await res.json();
+        document.getElementById('entry-loading')?.remove();
+        _renderEntryResult(data, box, lev, marg, 'AUTO');
+    } catch(e) {
+        document.getElementById('entry-loading')?.remove();
+        box.innerHTML += `<div class="msg msg-a"><span class="msg-a-tag">◈ SYSTEM</span><span style="color:var(--coral)">❌ ${e.message}</span></div>`;
+    }
+    box.scrollTop = box.scrollHeight;
+}
+
 async function entryMarket(direction) {
     const box = document.getElementById('chat-box');
     const lev  = document.getElementById('lev').value || 20;
@@ -1107,7 +1140,8 @@ async function entryMarket(direction) {
                 asset:     currentAsset,
                 leverage:  parseInt(lev),
                 margin:    parseFloat(marg),
-                direction: direction
+                direction: direction,
+                timeframe: selectedTF || '15m'
             })
         });
         const data = await res.json();
@@ -1134,13 +1168,19 @@ async function entryMarket(direction) {
             const prof1   = Math.abs(coins * (parseFloat(s.tp1) - entry) * (dir==='LONG'?1:-1));
             const prof2   = Math.abs(coins * (parseFloat(s.tp2) - entry) * (dir==='LONG'?1:-1));
             const loss    = Math.abs(coins * (parseFloat(s.sl)  - entry) * (dir==='LONG'?-1:1));
+            const prof3   = s.tp3 ? Math.abs(coins * (parseFloat(s.tp3) - entry) * (dir==='LONG'?1:-1)) : 0;
+            const tp3Pct  = s.tp3_pct || 0;
             riskHtml = `
                 <div class="rc-block">
                     <div class="rc-tag">MARKET ENTRY · RR ${rrRatio}</div>
                     <div class="rc-row"><span>ТЕКУЩАЯ ЦЕНА</span><span style="color:#00e5ff">${data.price || s.entry}</span></div>
                     <div class="rc-row"><span>TP1 PROFIT</span><span class="uv">+$${prof1.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp1Pct}%)</span></span></div>
                     <div class="rc-row"><span>TP2 PROFIT</span><span class="uv" style="color:#b8ff00">+$${prof2.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp2Pct}%)</span></span></div>
-                    <div class="rc-row"><span>EST. LOSS</span><span class="dv">−$${loss.toFixed(2)} <span style="font-size:10px;opacity:.7">(-${slPct}%)</span></span></div>
+                    ${s.tp3 ? `<div class="rc-row"><span>TP3 PROFIT</span><span class="uv" style="color:#00e5ff">+$${prof3.toFixed(2)} <span style="font-size:10px;opacity:.7">(+${tp3Pct}%)</span></span></div>` : ''}
+                    <div class="rc-row"><span>SL LOSS</span><span class="dv">−$${loss.toFixed(2)} <span style="font-size:10px;opacity:.7">(-${slPct}%)</span></span></div>
+                    ${s.fibo_key ? `<div class="rc-row"><span>FIBO ZONE</span><span style="color:#ffcc00">${s.fibo_key}</span></div>` : ''}
+                    ${s.smart_money ? `<div class="rc-row"><span>SMART MONEY</span><span style="color:#b89fff">${s.smart_money}</span></div>` : ''}
+                    ${s.liquidity ? `<div class="rc-row"><span>LIQUIDITY</span><span style="color:#00e5ff">${s.liquidity}</span></div>` : ''}
                 </div>`;
         }
 

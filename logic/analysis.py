@@ -551,22 +551,22 @@ class QuantumAnalyzer:
             if direction == "LONG":
                 if eq_lows >= 2:
                     smart_money = "Sweep buy-side liquidity 🎯"
-                    conf_score += 1
+                    bs += 1
                     conf_reasons.append("Smart Money: Buy-side liquidity sweep ✓")
                 elif price < recent_low + price_range * 0.2:
                     smart_money = "Discount zone (below 20% range)"
                     liquidity   = f"Liq. pool near {round(recent_low, 4)}"
-                    conf_score += 1
+                    bs += 1
                     conf_reasons.append("Discount zone — institutional entry ✓")
             else:
                 if eq_highs >= 2:
                     smart_money = "Sweep sell-side liquidity 🎯"
-                    conf_score += 1
+                    bs += 1
                     conf_reasons.append("Smart Money: Sell-side liquidity sweep ✓")
                 elif price > recent_high - price_range * 0.2:
                     smart_money = "Premium zone (top 20% range)"
                     liquidity   = f"Liq. pool near {round(recent_high, 4)}"
-                    conf_score += 1
+                    bs += 1
                     conf_reasons.append("Premium zone — institutional short ✓")
 
             # Order blocks (simplified: large candle body before reversal)
@@ -577,7 +577,7 @@ class QuantumAnalyzer:
                 last_body = abs(prices[-1] - (opens[-1] if opens else prices[-1]))
                 if last_body > avg_body * 1.8:
                     smart_money += " | Order Block detected"
-                    conf_score += 1
+                    bs += 1
                     conf_reasons.append("Order Block (large candle body) ✓")
 
             fibo_key = ""
@@ -650,12 +650,16 @@ class QuantumAnalyzer:
             return {
                 "direction":        direction,
                 "entry":            round(price, 6),
+                "price":            round(price, 6),
                 "tp1":              tp1, "tp2": tp2, "sl": sl,
                 "tp1_pct":          tp1_pct, "tp2_pct": tp2_pct, "tp3": tp3, "tp3_pct": tp3_pct,
                 "sl_pct": sl_pct,
                 "rr_ratio": rr_ratio, "rr2_ratio": rr2_ratio,
                 "rr3_ratio": rr3_ratio if 'rr3_ratio' in locals() else "1:0",
                 "leverage":         _lev,
+                "margin":           margin,
+                "primary_tf":       primary_tf,
+                "rsi":              rsi_ptf,
                 "bullish_score":    bs,
                 "atr":              atr_val,
                 "obv_trend":        obv_trend_val,
@@ -663,10 +667,16 @@ class QuantumAnalyzer:
                 "liquidity":        liquidity   if 'liquidity'   in locals() else "",
                 "fibo_key":         fibo_key    if 'fibo_key'    in locals() else "",
                 "liquidity_sweep":  liq_sweep,
+                "liq_sweep":        liq_sweep,
                 "stochastic":       stoch,
                 "williams_r":       wpr,
                 "volume_spike":     vol_spike,
                 "fibo":             fibo_dict,
+                "fibonacci":        fibo_dict,
+                "highs_20":         highs[-20:] if len(highs) >= 20 else list(highs),
+                "lows_20":          lows[-20:]  if len(lows)  >= 20 else list(lows),
+                "swing_high":       swing_high,
+                "swing_low":        swing_low,
                 "ob": {
                     "top":     round(g_low + diff * 0.15, 6),
                     "bottom":  round(g_low, 6),
@@ -697,15 +707,20 @@ class QuantumAnalyzer:
                       "0.618": 0.0, "0.786": 0.0, "1.618": 0.0}
         return {
             "direction":       "SHORT",
-            "entry": 0.0, "tp1": 0.0, "tp2": 0.0, "sl": 0.0,
-            "tp1_pct": 0.0, "tp2_pct": 0.0, "sl_pct": 0.0,
-            "rr_ratio": "1:0", "rr2_ratio": "1:0",
-            "leverage": 1, "bullish_score": 0,
+            "entry": 0.0, "price": 0.0,
+            "tp1": 0.0, "tp2": 0.0, "tp3": 0.0, "sl": 0.0,
+            "tp1_pct": 0.0, "tp2_pct": 0.0, "tp3_pct": 0.0, "sl_pct": 0.0,
+            "rr_ratio": "1:0", "rr2_ratio": "1:0", "rr3_ratio": "1:0",
+            "leverage": 1, "margin": 0.0, "primary_tf": "15m",
+            "rsi": 50.0, "bullish_score": 0,
             "atr": 0.0, "obv_trend": "neutral",
-            "liquidity_sweep": "none",
+            "smart_money": "", "liquidity": "",
+            "liquidity_sweep": "none", "liq_sweep": "none",
             "stochastic":  {"k": 50.0, "d": 50.0, "signal": "NEUTRAL"},
             "williams_r":  -50.0, "volume_spike": False,
-            "fibo":        empty_fibo,
+            "fibo":        empty_fibo, "fibonacci": empty_fibo,
+            "highs_20": [], "lows_20": [],
+            "swing_high": 0.0, "swing_low": 0.0,
             "ob":          {"top": 0.0, "bottom": 0.0, "bullish": [], "bearish": []},
             "fvg":         {"status": "Error", "count": 0}, "fvg_status": "Error",
             "bos":         {"bos": "none", "choch": "none"},

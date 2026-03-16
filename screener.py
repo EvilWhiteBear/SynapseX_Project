@@ -229,6 +229,25 @@ def _full_ai_signal(asset: str, collector, analyzer,
         if not signal or signal.get('entry', 0) == 0:
             return None
 
+        # Neural Consensus для высококонфидентных сигналов (bullish_score >= 7)
+        if signal.get('bullish_score', 0) >= 7:
+            try:
+                from ai_consensus import get_consensus as _screener_consensus
+                signal.setdefault('price', float(live.get('price', 0)))
+                consensus = _screener_consensus(signal, asset)
+                if consensus and consensus.get('direction') in ('LONG', 'SHORT'):
+                    signal['direction'] = consensus['direction']
+                    signal['consensus_label'] = consensus.get('label', '')
+                    signal['consensus_vote']  = consensus.get('vote', '')
+                    if consensus.get('sl'):  signal['sl']  = consensus['sl']
+                    if consensus.get('tp1'): signal['tp1'] = consensus['tp1']
+                    if consensus.get('tp2'): signal['tp2'] = consensus['tp2']
+                    if consensus.get('tp3'): signal['tp3'] = consensus['tp3']
+                    logger.info(f"[SCREENER_CONSENSUS] {asset}: "
+                                f"{consensus['direction']} {consensus.get('label','')}")
+            except Exception as _ce:
+                logger.warning(f"[SCREENER_CONSENSUS] {asset}: {_ce}")
+
         _tf    = primary_tf.upper()
         _con   = signal.get('confidence', {})
         _his   = signal.get('historical', {})

@@ -43,6 +43,14 @@ except ImportError as e:
     class AutoScreener: pass
     DISCLAIMER_SHORT = "⚠️ Не является финансовым советом."
 
+# ── Neural Consensus Engine ───────────────────────────────────────────────────
+try:
+    from ai_consensus import get_consensus as _get_consensus
+    _consensus_ready = True
+except ImportError:
+    _consensus_ready = False
+    def _get_consensus(*a, **k): return {}
+
 from flask import (Flask, render_template, request, jsonify,
                    session, redirect, url_for, Response, stream_with_context)
 
@@ -1194,6 +1202,31 @@ def api_entry():
 
         # 3. Технический анализ
         signal = analyzer.calculate_signal(mtf_history, lev, marg, primary_tf='15m')
+        signal.setdefault('price', current_price)
+
+        # 3б. Neural Consensus Engine (параллельные AI роли) — если доступен
+        if _consensus_ready:
+            try:
+                consensus = _get_consensus(signal, asset, DB_PATH)
+                if consensus and consensus.get('direction') in ('LONG', 'SHORT'):
+                    # Перезаписываем направление и уровни из консенсуса (если лучше)
+                    signal['direction']  = consensus['direction']
+                    signal['consensus']  = {
+                        'label':       consensus.get('label', ''),
+                        'vote':        consensus.get('vote', ''),
+                        'confidence':  consensus.get('confidence', 0),
+                        'session':     consensus.get('session', ''),
+                        'btc_context': consensus.get('btc_context', ''),
+                        'elapsed_sec': consensus.get('elapsed_sec', 0),
+                    }
+                    if consensus.get('sl'):  signal['sl']  = consensus['sl']
+                    if consensus.get('tp1'): signal['tp1'] = consensus['tp1']
+                    if consensus.get('tp2'): signal['tp2'] = consensus['tp2']
+                    if consensus.get('tp3'): signal['tp3'] = consensus['tp3']
+                    log.info(f"[CONSENSUS] {asset}: {consensus['direction']} "
+                             f"{consensus.get('label','')} conf={consensus.get('confidence')}%")
+            except Exception as _ce:
+                log.warning(f"[CONSENSUS] fallback to signal: {_ce}")
 
         # 4. Если direction задан вручную — перезаписываем
         if direction in ('LONG', 'SHORT'):

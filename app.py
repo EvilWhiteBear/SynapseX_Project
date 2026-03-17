@@ -73,12 +73,13 @@ except ImportError:
 # ── S3 Backup (Timeweb S3 для хранения БД) ───────────────────────────────────
 try:
     from s3_backup import (
-        restore_if_needed, upload_db,
+        restore_if_needed, upload_db, upload_now,
         start_s3_sync_scheduler, _is_configured as _s3_configured
     )
 except ImportError:
     def restore_if_needed(db_path): return False
     def upload_db(db_path):         return False
+    def upload_now(db_path):        pass
     def start_s3_sync_scheduler(*a, **k): pass
     def _s3_configured():           return False
 
@@ -2423,6 +2424,7 @@ def _upsert_user(uid: str, email: str, name: str, photo: str):
     """Создаёт или обновляет запись пользователя."""
     try:
         ts = datetime.now(timezone.utc).isoformat()
+        is_new = False
         with sqlite3.connect(DB_PATH) as conn:
             # Сначала пробуем INSERT
             try:
@@ -2433,6 +2435,7 @@ def _upsert_user(uid: str, email: str, name: str, photo: str):
                                        referred_by, premium_until)
                     VALUES (?, ?, ?, ?, ?, ?, 0, 0, -1, 0, '', '', '', '', '')
                 """, (uid, email, name, photo, ts, ts))
+                is_new = True
             except sqlite3.IntegrityError:
                 # Уже существует — обновляем
                 conn.execute("""
@@ -2442,6 +2445,8 @@ def _upsert_user(uid: str, email: str, name: str, photo: str):
                 """, (email, name, photo, ts, uid))
             conn.commit()
         log.info(f"[AUTH] upsert_user OK: {email} ({uid[:8]}...)")
+        if is_new:
+            upload_now(DB_PATH)
     except Exception as e:
         log.error(f"[AUTH] upsert_user FAILED: {e}")
 
@@ -2886,6 +2891,8 @@ def api_set_balance():
     if balance <= 0 or balance > 10_000_000:
         return jsonify({"error": "INVALID_BALANCE"}), 400
     result = set_initial_balance(DB_PATH, uid, balance)
+    if result.get("status") == "OK":
+        upload_now(DB_PATH)
     return jsonify(result)
 
 
@@ -2924,6 +2931,8 @@ def api_open_trade():
             note      = data.get('note', ''),
             signal_id = int(data.get('signal_id', 0))
         )
+        if result.get("status") == "OK":
+            upload_now(DB_PATH)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -2949,6 +2958,8 @@ def api_close_trade(trade_id):
                 if row:
                     exit_price = _get_live_price(row[0])
         result = close_trade(DB_PATH, trade_id, uid, exit_price, data.get('result',''))
+        if result.get("status") == "OK":
+            upload_now(DB_PATH)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -3761,6 +3772,10 @@ def api_crypto_webhook():
         log.warning("[CRYPTO] Неверная IPN подпись")
         return jsonify({"error": "invalid_signature"}), 400
     result = handle_crypto_webhook(payload, DB_PATH)
+
+    if result.get("premium"):
+        upload_now(DB_PATH)
+
     # Отправляем email при активации Premium
     if result.get("premium") and result.get("uid"):
         try:
@@ -3866,6 +3881,9 @@ def paddle_webhook():
         return jsonify({"error": "invalid JSON"}), 400
 
     result = handle_paddle_webhook(payload, DB_PATH)
+
+    if result.get("premium"):
+        upload_now(DB_PATH)
 
     # Отправляем email при активации Premium
     if result.get("premium") and result.get("uid"):

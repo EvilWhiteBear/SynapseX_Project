@@ -163,27 +163,22 @@ def restore_if_needed(db_path: str) -> bool:
         log.info(f"[S3] Файл на S3 не найден или ошибка: {e}")
         return False
 
-    # Скачиваем если:
-    # 1. Локальной нет вообще
-    # 2. Локальная пустая (< 8KB — свежий деплой)
-    # 3. S3 версия больше локальной (более свежие данные)
-    should_restore = (
-        not local_exists or
-        local_size < 8 * 1024 or
-        s3_size > local_size
-    )
-
-    if should_restore:
-        reason = (
-            "файл отсутствует" if not local_exists else
-            f"локальный пустой ({local_size}B)" if local_size < 8*1024 else
-            f"S3 новее ({s3_size}B > {local_size}B)"
-        )
-        log.info(f"[S3] Восстанавливаем БД: {reason}")
-        return download_db(db_path)
-    else:
-        log.info(f"[S3] Локальная БД актуальна ({local_size//1024}KB) — S3 не нужен")
+    # Всегда скачиваем с S3 при старте если файл там есть — S3 всегда актуальнее
+    # (после деплоя локальная БД пустая, S3 содержит реальные данные)
+    if s3_size == 0:
+        log.info("[S3] БД на S3 пустая — пропускаем восстановление")
         return False
+
+    log.info(f"[S3] Восстанавливаем БД с S3 (локальная: {local_size}B, S3: {s3_size}B)")
+    return download_db(db_path)
+
+
+def upload_now(db_path: str):
+    """Немедленно загружает БД на S3 в фоновом потоке (не блокирует запрос)."""
+    if not _is_configured():
+        return
+    t = threading.Thread(target=upload_db, args=(db_path,), daemon=True, name="S3UploadNow")
+    t.start()
 
 
 def start_s3_sync_scheduler(db_path: str, interval_hours: int = 6):

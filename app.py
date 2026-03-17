@@ -1189,6 +1189,7 @@ def api_entry():
         lev       = max(1, min(125, int(req_data.get('leverage', 20))))
         marg      = max(1.0, float(req_data.get('margin', 100)))
         direction = req_data.get('direction', 'AUTO').upper()  # LONG / SHORT / AUTO
+        timeframe = req_data.get('timeframe', '15m')
 
         # 1. Живая цена
         live_data = collector.get_live_metrics(asset)
@@ -1208,7 +1209,7 @@ def api_entry():
                 pass
 
         # 3. Технический анализ
-        signal = analyzer.calculate_signal(mtf_history, lev, marg, primary_tf='15m')
+        signal = analyzer.calculate_signal(mtf_history, lev, marg, primary_tf=timeframe)
         signal.setdefault('price', current_price)
 
         # 3б. Neural Consensus Engine (параллельные AI роли) — если доступен
@@ -1235,27 +1236,10 @@ def api_entry():
             except Exception as _ce:
                 log.warning(f"[CONSENSUS] fallback to signal: {_ce}")
 
-        # 4. Если direction задан вручную — перезаписываем
+        # 4. Если direction задан вручную — устанавливаем только направление
+        # TP/SL оставляем от calculate_signal() — они точнее
         if direction in ('LONG', 'SHORT'):
             signal['direction'] = direction
-            # Пересчитываем TP/SL для заданного direction
-            sl_perc = max(0.008, min(0.025, 0.7 / max(lev, 1)))
-            tp_perc = sl_perc * 2.5
-            entry   = current_price
-            if direction == 'LONG':
-                signal['tp1'] = round(entry * (1 + tp_perc), 6)
-                signal['tp2'] = round(entry * (1 + tp_perc * 2), 6)
-                signal['sl']  = round(entry * (1 - sl_perc), 6)
-            else:
-                signal['tp1'] = round(entry * (1 - tp_perc), 6)
-                signal['tp2'] = round(entry * (1 - tp_perc * 2), 6)
-                signal['sl']  = round(entry * (1 + sl_perc), 6)
-            signal['entry']    = round(entry, 6)
-            signal['tp1_pct']  = round(tp_perc * lev * 100, 1)
-            signal['tp2_pct']  = round(tp_perc * 2 * lev * 100, 1)
-            signal['sl_pct']   = round(sl_perc * lev * 100, 1)
-            signal['rr_ratio'] = f"1:{round(signal['tp1_pct'] / max(signal['sl_pct'], 0.01), 1)}"
-            signal['rr2_ratio']= f"1:{round(signal['tp2_pct'] / max(signal['sl_pct'], 0.01), 1)}"
 
         # 5. Строим промпт для AI
         _tp1_pct = signal.get('tp1_pct', 0)

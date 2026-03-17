@@ -15,7 +15,7 @@ GEMINI_KEY = os.getenv("GEMINI_KEY",      "")
 CP_KEY     = os.getenv("CRYPTOPANIC_KEY", "")
 
 GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions"
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 _btc_cache: dict  = {}
 _btc_ts:    float = 0.0
@@ -229,14 +229,14 @@ def _smc_analyst(signal, asset, btc_ctx):
     )
     try:
         r = requests.post(GROQ_URL,
-            json={"model": "mixtral-8x7b-32768",
+            json={"model": "llama-3.1-8b-instant",
                   "messages": [{"role": "user", "content": prompt}],
                   "temperature": 0.1, "max_tokens": 400},
             headers={"Authorization": f"Bearer {GROQ_KEY}",
                      "Content-Type": "application/json"}, timeout=15)
         r.raise_for_status()
         text = r.json()["choices"][0]["message"]["content"]
-        return {"role": "SMC Аналитик", "model": "mixtral-8x7b",
+        return {"role": "SMC Аналитик", "model": "llama-3.1-8b-instant",
                 "text": text, "direction": _parse_direction(text),
                 "confidence": _parse_confidence(text)}
     except Exception as e:

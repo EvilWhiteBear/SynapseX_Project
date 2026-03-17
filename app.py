@@ -496,6 +496,7 @@ def _init_users_db():
                 ('premium_until',      "TEXT DEFAULT ''"),
                 ('telegram_chat_id',   "TEXT DEFAULT ''"),
                 ('tg_alerts_enabled',  'INTEGER DEFAULT 1'),
+                ('trial_until',        "TEXT DEFAULT ''"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
@@ -2411,6 +2412,7 @@ def _init_users_db():
                 ('premium_until',      "TEXT DEFAULT ''"),
                 ('telegram_chat_id',   "TEXT DEFAULT ''"),
                 ('tg_alerts_enabled',  'INTEGER DEFAULT 1'),
+                ('trial_until',        "TEXT DEFAULT ''"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")

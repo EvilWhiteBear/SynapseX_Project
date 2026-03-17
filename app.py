@@ -2418,6 +2418,8 @@ def _init_users_db():
                 ('telegram_chat_id',   "TEXT DEFAULT ''"),
                 ('tg_alerts_enabled',  'INTEGER DEFAULT 1'),
                 ('trial_until',        "TEXT DEFAULT ''"),
+                ('paddle_sub_id',      "TEXT DEFAULT ''"),
+                ('wallet_address',     "TEXT DEFAULT ''"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
@@ -3844,7 +3846,11 @@ def api_crypto_webhook():
     result = handle_crypto_webhook(payload, DB_PATH)
 
     if result.get("premium"):
-        upload_now(DB_PATH)
+        try:
+            upload_db(DB_PATH)
+            log.info("[S3] Premium активирован (crypto) — БД синхронизирована")
+        except Exception as _s3e:
+            log.error(f"[S3] Ошибка синхронизации после Premium (crypto): {_s3e}")
 
     # Отправляем email при активации Premium
     if result.get("premium") and result.get("uid"):
@@ -3953,7 +3959,11 @@ def paddle_webhook():
     result = handle_paddle_webhook(payload, DB_PATH)
 
     if result.get("premium"):
-        upload_db(DB_PATH)
+        try:
+            upload_db(DB_PATH)
+            log.info("[S3] Premium активирован — БД синхронизирована")
+        except Exception as _s3e:
+            log.error(f"[S3] Ошибка синхронизации после Premium: {_s3e}")
 
     # Отправляем email при активации Premium
     if result.get("premium") and result.get("uid"):

@@ -63,7 +63,7 @@ def _get_client():
 
 
 def upload_db(db_path: str) -> bool:
-    """Загружает signals.db на S3. Возвращает True если успешно."""
+    """Загружает signals.db на S3 синхронно с retry 3 попытки."""
     if not _is_configured():
         return False
     if not os.path.exists(db_path):
@@ -74,19 +74,28 @@ def upload_db(db_path: str) -> bool:
     if not client:
         return False
 
-    try:
-        db_size = os.path.getsize(db_path)
-        client.upload_file(
-            db_path,
-            S3_BUCKET,
-            S3_DB_KEY,
-            ExtraArgs={"ContentType": "application/octet-stream"}
-        )
-        log.info(f"[S3] ✅ БД загружена на S3: {db_size // 1024}KB → s3://{S3_BUCKET}/{S3_DB_KEY}")
-        return True
-    except Exception as e:
-        log.error(f"[S3] ❌ Ошибка загрузки: {e}")
-        return False
+    db_size = os.path.getsize(db_path)
+    log.info(f"[S3] Загружаем БД на S3: {db_size}B ({db_size // 1024}KB)")
+
+    for attempt in range(1, 4):
+        try:
+            client.upload_file(
+                db_path,
+                S3_BUCKET,
+                S3_DB_KEY,
+                ExtraArgs={"ContentType": "application/octet-stream"}
+            )
+            # Проверяем размер на S3 после загрузки
+            head = client.head_object(Bucket=S3_BUCKET, Key=S3_DB_KEY)
+            s3_size = head.get("ContentLength", 0)
+            log.info(f"[S3] ✅ БД загружена (попытка {attempt}): локально {db_size}B → S3 {s3_size}B")
+            return True
+        except Exception as e:
+            log.error(f"[S3] ❌ Ошибка загрузки (попытка {attempt}/3): {e}")
+            if attempt == 3:
+                return False
+
+    return False
 
 
 def download_db(db_path: str) -> bool:
@@ -163,11 +172,11 @@ def restore_if_needed(db_path: str) -> bool:
         log.info(f"[S3] Файл на S3 не найден или ошибка: {e}")
         return False
 
-    if s3_size > 0:
-        log.info("[S3] Всегда восстанавливаем с S3 при старте")
+    if s3_size > 8192:
+        log.info(f"[S3] Восстанавливаем с S3 при старте (S3: {s3_size}B, локальная: {local_size}B)")
         return download_db(db_path)
 
-    log.info("[S3] БД на S3 пустая — пропускаем восстановление")
+    log.info(f"[S3] S3 файл слишком мал ({s3_size}B ≤ 8192B) — пустая база, пропускаем")
     return False
 
 

@@ -364,12 +364,32 @@ def get_consensus(signal: dict, asset: str, db_path: str = "signals.db") -> dict
         avg_conf = max(avg_conf - 10, 0);  label = "КОНФЛИКТ МНЕНИЙ 🔴"
 
     # Уровни от риск менеджера
-    rt   = risk.get("text", "")
+    rt    = risk.get("text", "")
     entry = p
-    sl   = _parse_price(rt, "СТОП-ЛОСС")      or signal.get("sl", 0)
-    tp1  = _parse_price(rt, "ТЕЙК-ПРОФИТ 1")  or signal.get("tp1", 0)
-    tp2  = _parse_price(rt, "ТЕЙК-ПРОФИТ 2")  or signal.get("tp2", 0)
-    tp3  = _parse_price(rt, "ТЕЙК-ПРОФИТ 3")  or signal.get("tp3", 0)
+    _sl_ai  = _parse_price(rt, "СТОП-ЛОСС")     or signal.get("sl",  0)
+    _tp1_ai = _parse_price(rt, "ТЕЙК-ПРОФИТ 1") or signal.get("tp1", 0)
+    _tp2_ai = _parse_price(rt, "ТЕЙК-ПРОФИТ 2") or signal.get("tp2", 0)
+    _tp3_ai = _parse_price(rt, "ТЕЙК-ПРОФИТ 3") or signal.get("tp3", 0)
+
+    # Валидация направления: если AI дал перевёрнутые уровни — берём algo-уровни
+    def _valid(lvl: float, above: bool) -> bool:
+        if not lvl or not entry: return False
+        return (lvl > entry) if above else (lvl < entry)
+
+    if final_dir == "LONG":
+        tp_ok = _valid(_tp1_ai, True) and _valid(_tp2_ai, True) and _valid(_tp3_ai, True)
+        sl_ok = _valid(_sl_ai, False)
+    else:
+        tp_ok = _valid(_tp1_ai, False) and _valid(_tp2_ai, False) and _valid(_tp3_ai, False)
+        sl_ok = _valid(_sl_ai, True)
+
+    sl  = _sl_ai  if sl_ok  else signal.get("sl",  0)
+    tp1 = _tp1_ai if tp_ok  else signal.get("tp1", 0)
+    tp2 = _tp2_ai if tp_ok  else signal.get("tp2", 0)
+    tp3 = _tp3_ai if tp_ok  else signal.get("tp3", 0)
+
+    if not tp_ok or not sl_ok:
+        log.warning(f"[CONSENSUS] AI уровни перевёрнуты для {final_dir} (entry={entry}), используем algo-уровни")
 
     elapsed = round(time.time() - t0, 1)
     log.info(f"[CONSENSUS] Done {elapsed}s: {final_dir} ({avg_conf}%) {label}")

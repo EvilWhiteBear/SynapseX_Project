@@ -3485,6 +3485,69 @@ def admin_storage_cleanup():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/admin/api/s3/status')
+@_require_admin
+def admin_s3_status():
+    """Статус S3 синхронизации: размеры, время, кол-во записей."""
+    import time
+    result = {
+        "configured": _s3_configured(),
+        "local_size_mb": 0,
+        "s3_size_mb": 0,
+        "s3_last_modified": "",
+        "users": 0,
+        "signals": 0,
+        "trades": 0,
+        "status": "not_configured",
+    }
+    # Локальный размер
+    try:
+        result["local_size_mb"] = round(os.path.getsize(DB_PATH) / 1024 / 1024, 3)
+    except Exception:
+        pass
+    # Статистика из БД
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            result["users"]   = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            result["signals"] = conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+            try:
+                result["trades"] = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
+            except Exception:
+                result["trades"] = 0
+    except Exception:
+        pass
+    # S3 данные
+    if _s3_configured():
+        try:
+            from s3_backup import _get_client, S3_BUCKET, S3_DB_KEY
+            client = _get_client()
+            if client:
+                head = client.head_object(Bucket=S3_BUCKET, Key=S3_DB_KEY)
+                result["s3_size_mb"]      = round(head.get("ContentLength", 0) / 1024 / 1024, 3)
+                result["s3_last_modified"] = head.get("LastModified", "").isoformat() if head.get("LastModified") else ""
+                local_mb = result["local_size_mb"]
+                s3_mb    = result["s3_size_mb"]
+                result["status"] = "synced" if abs(local_mb - s3_mb) < 0.05 else "out_of_sync"
+            else:
+                result["status"] = "error"
+        except Exception as e:
+            result["status"] = "error"
+            result["error"]  = str(e)
+    return jsonify(result)
+
+
+@app.route('/admin/api/s3/sync/now', methods=['POST'])
+@_require_admin
+def admin_s3_sync_now():
+    """Принудительная немедленная синхронизация БД на S3."""
+    if not _s3_configured():
+        return jsonify({"error": "S3 не настроен"}), 503
+    ok = upload_db(DB_PATH)
+    if ok:
+        return jsonify({"status": "OK", "message": "БД загружена на S3 ✅"})
+    return jsonify({"error": "Ошибка загрузки на S3"}), 500
+
+
 @app.route('/api/promo/apply', methods=['POST'])
 def apply_promo():
     if not session.get('user_uid'):

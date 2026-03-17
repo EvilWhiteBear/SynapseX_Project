@@ -668,6 +668,52 @@ canvas#bg{position:fixed;inset:0;z-index:0;opacity:.09;pointer-events:none;}
       <div id="storage-trades" style="font-family:var(--fm);font-size:12px;color:var(--t2);line-height:2;"></div>
     </div>
 
+    <!-- S3 Monitor -->
+    <div style="background:var(--card-bg);border:1px solid var(--b);padding:16px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="s3-indicator" style="width:10px;height:10px;border-radius:50%;background:#444;flex-shrink:0;"></div>
+          <span style="font-family:var(--fm);font-size:10px;color:var(--t3);letter-spacing:2px;">S3 СИНХРОНИЗАЦИЯ</span>
+          <span id="s3-status-label" style="font-family:var(--fm);font-size:10px;color:var(--t3);">—</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="s3SyncNow()" class="btn-action" style="background:rgba(0,229,255,0.1);border-color:rgba(0,229,255,0.3);">☁ Синхронизировать</button>
+          <button onclick="loadS3Status()" class="btn-action">↻ Обновить</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;">
+        <div style="padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;">
+          <div style="font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:1px;margin-bottom:4px;">ЛОКАЛЬНАЯ БД</div>
+          <div id="s3-local-size" style="font-family:var(--fb);font-size:18px;color:#00e5ff;">—</div>
+          <div style="font-family:var(--fm);font-size:8px;color:var(--t4);">MB</div>
+        </div>
+        <div style="padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;">
+          <div style="font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:1px;margin-bottom:4px;">S3 РАЗМЕР</div>
+          <div id="s3-remote-size" style="font-family:var(--fb);font-size:18px;color:#b8ff00;">—</div>
+          <div style="font-family:var(--fm);font-size:8px;color:var(--t4);">MB</div>
+        </div>
+        <div style="padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;">
+          <div style="font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:1px;margin-bottom:4px;">ПОЛЬЗОВАТЕЛИ</div>
+          <div id="s3-users" style="font-family:var(--fb);font-size:18px;color:#7b00ff;">—</div>
+          <div style="font-family:var(--fm);font-size:8px;color:var(--t4);">в БД</div>
+        </div>
+        <div style="padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;">
+          <div style="font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:1px;margin-bottom:4px;">СИГНАЛЫ</div>
+          <div id="s3-signals" style="font-family:var(--fb);font-size:18px;color:#ff9500;">—</div>
+          <div style="font-family:var(--fm);font-size:8px;color:var(--t4);">в БД</div>
+        </div>
+        <div style="padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;">
+          <div style="font-family:var(--fm);font-size:9px;color:var(--t3);letter-spacing:1px;margin-bottom:4px;">СДЕЛКИ</div>
+          <div id="s3-trades" style="font-family:var(--fb);font-size:18px;color:#00cc88;">—</div>
+          <div style="font-family:var(--fm);font-size:8px;color:var(--t4);">в БД</div>
+        </div>
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t3);">
+        Последний бэкап: <span id="s3-last-sync" style="color:var(--t2);">—</span>
+      </div>
+      <div id="s3-action-log" style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-top:6px;min-height:16px;"></div>
+    </div>
+
     <!-- Cleanup log -->
     <div style="background:var(--card-bg);border:1px solid var(--b);padding:16px;">
       <div style="font-family:var(--fm);font-size:10px;color:var(--t3);letter-spacing:2px;margin-bottom:8px;">ЛОГ ОЧИСТКИ</div>
@@ -1268,9 +1314,49 @@ async function sendBroadcast(){
   else toast('ОШИБКА: '+d.error,'error');
 }
 
+// ── S3 Monitor ────────────────────────────────────────────────────────────────
+async function loadS3Status() {
+  try {
+    const r = await fetch('/admin/api/s3/status');
+    const d = await r.json();
+    const ind   = document.getElementById('s3-indicator');
+    const lbl   = document.getElementById('s3-status-label');
+    const colors = { synced:'#00ff88', out_of_sync:'#ffbb00', error:'#ff4444', not_configured:'#444' };
+    const labels = { synced:'✓ синхронизировано', out_of_sync:'⚠ не синхронизировано', error:'✗ ошибка', not_configured:'не настроен' };
+    const st = d.status || 'not_configured';
+    if (ind) { ind.style.background = colors[st] || '#444'; ind.style.boxShadow = st==='synced'?'0 0 6px #00ff88':'none'; }
+    if (lbl) lbl.textContent = labels[st] || st;
+    const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+    set('s3-local-size',  d.local_size_mb  ?? '—');
+    set('s3-remote-size', d.s3_size_mb     ?? '—');
+    set('s3-users',       d.users          ?? '—');
+    set('s3-signals',     d.signals        ?? '—');
+    set('s3-trades',      d.trades         ?? '—');
+    if (d.s3_last_modified) {
+      const dt = new Date(d.s3_last_modified);
+      set('s3-last-sync', dt.toLocaleString('ru-RU'));
+    }
+  } catch(e) { console.error('s3 status:', e); }
+}
+
+async function s3SyncNow() {
+  const logEl = document.getElementById('s3-action-log');
+  if (logEl) logEl.innerHTML = '⏳ Загружаем на S3...';
+  try {
+    const r = await fetch('/admin/api/s3/sync/now', {method:'POST'});
+    const d = await r.json();
+    if (logEl) logEl.innerHTML = d.error ? `<span style="color:#ff4444">✗ ${d.error}</span>` : `<span style="color:#00ff88">✅ ${d.message}</span>`;
+    setTimeout(loadS3Status, 1000);
+  } catch(e) {
+    if (logEl) logEl.innerHTML = `<span style="color:#ff4444">✗ ${e.message}</span>`;
+  }
+}
+
 // ── Инициализация ─────────────────────────────────────────────────────────────
 loadDashboard();
+loadS3Status();
 setInterval(loadDashboard,30000);
+setInterval(loadS3Status, 30000);
 setInterval(async()=>{
   try{const r=await fetch('/admin/api/online');const d=await r.json();
     const n=d.count??0;

@@ -1251,8 +1251,8 @@ def api_entry():
                 signal['tp2'] = round(entry * (1 - tp_perc * 2), 6)
                 signal['sl']  = round(entry * (1 + sl_perc), 6)
             signal['entry']    = round(entry, 6)
-            signal['tp1_pct']  = round(tp_perc * 2.5 * lev * 100, 1)
-            signal['tp2_pct']  = round(tp_perc * 5.0 * lev * 100, 1)
+            signal['tp1_pct']  = round(tp_perc * lev * 100, 1)
+            signal['tp2_pct']  = round(tp_perc * 2 * lev * 100, 1)
             signal['sl_pct']   = round(sl_perc * lev * 100, 1)
             signal['rr_ratio'] = f"1:{round(signal['tp1_pct'] / max(signal['sl_pct'], 0.01), 1)}"
             signal['rr2_ratio']= f"1:{round(signal['tp2_pct'] / max(signal['sl_pct'], 0.01), 1)}"

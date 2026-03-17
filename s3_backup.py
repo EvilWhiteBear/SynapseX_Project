@@ -163,22 +163,17 @@ def restore_if_needed(db_path: str) -> bool:
         log.info(f"[S3] Файл на S3 не найден или ошибка: {e}")
         return False
 
-    # Всегда скачиваем с S3 при старте если файл там есть — S3 всегда актуальнее
-    # (после деплоя локальная БД пустая, S3 содержит реальные данные)
-    if s3_size == 0:
-        log.info("[S3] БД на S3 пустая — пропускаем восстановление")
-        return False
+    if s3_size > 0:
+        log.info("[S3] Всегда восстанавливаем с S3 при старте")
+        return download_db(db_path)
 
-    log.info(f"[S3] Восстанавливаем БД с S3 (локальная: {local_size}B, S3: {s3_size}B)")
-    return download_db(db_path)
+    log.info("[S3] БД на S3 пустая — пропускаем восстановление")
+    return False
 
 
 def upload_now(db_path: str):
-    """Немедленно загружает БД на S3 в фоновом потоке (не блокирует запрос)."""
-    if not _is_configured():
-        return
-    t = threading.Thread(target=upload_db, args=(db_path,), daemon=True, name="S3UploadNow")
-    t.start()
+    """Немедленно загружает БД на S3 синхронно."""
+    upload_db(db_path)
 
 
 def start_s3_sync_scheduler(db_path: str, interval_hours: int = 6):

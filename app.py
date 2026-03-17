@@ -82,6 +82,11 @@ except ImportError:
     def upload_now(db_path):        pass
     def start_s3_sync_scheduler(*a, **k): pass
     def _s3_configured():           return False
+# ── activate_trial (app_core) ─────────────────────────────────────────────────
+try:
+    from app_core import activate_trial
+except ImportError:
+    def activate_trial(*a, **k): return False
 
 # ── Stripe payments ──────────────────────────────────────────────────────────
 try:
@@ -3948,7 +3953,7 @@ def paddle_webhook():
     result = handle_paddle_webhook(payload, DB_PATH)
 
     if result.get("premium"):
-        upload_now(DB_PATH)
+        upload_db(DB_PATH)
 
     # Отправляем email при активации Premium
     if result.get("premium") and result.get("uid"):

@@ -288,14 +288,15 @@ def _risk_manager(signal, asset, tech, smc):
         f"ВЫВОД РИСК МЕНЕДЖЕРА: [2-3 предложения]"
     )
     try:
-        r = requests.post(f"{GEMINI_URL}?key={GEMINI_KEY}",
-            json={"contents": [{"parts": [{"text": prompt}]}],
-                  "generationConfig": {"temperature": 0.05, "maxOutputTokens": 450}},
-            timeout=20)
+        r = requests.post(GROQ_URL,
+            json={"model": "llama-3.1-70b-versatile",
+                  "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.05, "max_tokens": 450},
+            headers={"Authorization": f"Bearer {GROQ_KEY}",
+                     "Content-Type": "application/json"}, timeout=20)
         r.raise_for_status()
-        parts = r.json().get("candidates",[{}])[0].get("content",{}).get("parts",[])
-        text  = parts[0].get("text","") if parts else ""
-        return {"role": "Риск Менеджер", "model": "gemini-1.5-flash",
+        text = r.json()["choices"][0]["message"]["content"]
+        return {"role": "Риск Менеджер", "model": "llama-3.1-70b-versatile",
                 "text": text, "direction": _parse_direction(text),
                 "confidence": _parse_confidence(text)}
     except Exception as e:

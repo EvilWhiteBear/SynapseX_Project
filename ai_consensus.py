@@ -246,7 +246,7 @@ def _smc_analyst(signal, asset, btc_ctx):
 
 
 def _risk_manager(signal, asset, tech, smc):
-    if not GEMINI_KEY:
+    if not GROQ_KEY:
         return {"error": "no_key", "direction": "NEUTRAL", "confidence": 0,
                 "role": "Риск Менеджер", "text": ""}
     p    = signal.get("price", 0)
@@ -289,14 +289,14 @@ def _risk_manager(signal, asset, tech, smc):
     )
     try:
         r = requests.post(GROQ_URL,
-            json={"model": "llama-3.1-70b-versatile",
+            json={"model": "llama-3.1-8b-instant",
                   "messages": [{"role": "user", "content": prompt}],
                   "temperature": 0.05, "max_tokens": 450},
             headers={"Authorization": f"Bearer {GROQ_KEY}",
                      "Content-Type": "application/json"}, timeout=20)
         r.raise_for_status()
         text = r.json()["choices"][0]["message"]["content"]
-        return {"role": "Риск Менеджер", "model": "llama-3.1-70b-versatile",
+        return {"role": "Риск Менеджер", "model": "llama-3.1-8b-instant",
                 "text": text, "direction": _parse_direction(text),
                 "confidence": _parse_confidence(text)}
     except Exception as e:

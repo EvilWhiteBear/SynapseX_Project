@@ -172,11 +172,11 @@ def restore_if_needed(db_path: str) -> bool:
         log.info(f"[S3] Файл на S3 не найден или ошибка: {e}")
         return False
 
-    if s3_size > 8192:
+    if s3_size > 0:
         log.info(f"[S3] Восстанавливаем с S3 при старте (S3: {s3_size}B, локальная: {local_size}B)")
         return download_db(db_path)
 
-    log.info(f"[S3] S3 файл слишком мал ({s3_size}B ≤ 8192B) — пустая база, пропускаем")
+    log.info("[S3] S3 файл пустой (0 байт) — пропускаем восстановление")
     return False
 
 

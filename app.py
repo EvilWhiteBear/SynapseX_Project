@@ -2404,6 +2404,7 @@ def _init_users_db():
                 ('trial_until',        "TEXT DEFAULT ''"),
                 ('paddle_sub_id',      "TEXT DEFAULT ''"),
                 ('wallet_address',     "TEXT DEFAULT ''"),
+                ('referral_code',      "TEXT DEFAULT ''"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
@@ -4076,7 +4077,7 @@ def admin_screener_signals():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/public/stats')
+@app.route('/api/public/stats', methods=['GET', 'POST'])
 def api_public_stats():
     """Публичная статистика: онлайн, сигналов сегодня, последний сигнал."""
     try:

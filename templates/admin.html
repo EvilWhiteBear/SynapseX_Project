@@ -648,6 +648,44 @@ canvas#bg{position:fixed;inset:0;z-index:0;opacity:.09;pointer-events:none;}
         <button onclick="runCleanup(30)" class="btn-action btn-danger">⚠ Очистить 30д+</button>
       </div>
     </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <a href="/admin/db/download"
+         style="padding:10px 20px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.4);
+                color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:11px;
+                letter-spacing:2px;text-decoration:none;cursor:pointer;">
+        💾 СКАЧАТЬ БД
+      </a>
+      <label style="padding:10px 20px;background:rgba(184,255,0,0.1);border:1px solid rgba(184,255,0,0.4);
+                    color:#b8ff00;font-family:'Share Tech Mono',monospace;font-size:11px;
+                    letter-spacing:2px;cursor:pointer;">
+        📤 ЗАГРУЗИТЬ БД
+        <input type="file" id="db-upload-input" accept=".db" style="display:none" onchange="uploadDB(this)">
+      </label>
+      <div id="upload-status" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#607080;padding:10px;display:none;"></div>
+    </div>
+    <script>
+    async function uploadDB(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const status = document.getElementById('upload-status');
+      status.style.display = 'block';
+      status.style.color = '#00e5ff';
+      status.textContent = '⟳ Загрузка...';
+      try {
+        const fd = new FormData();
+        fd.append('db_file', file);
+        const r = await fetch('/admin/db/upload', {method:'POST', body:fd});
+        const d = await r.json();
+        status.style.color = d.status === 'OK' ? '#b8ff00' : '#ff1e50';
+        status.textContent = d.message || d.error;
+        if (d.status === 'OK') setTimeout(() => location.reload(), 2000);
+      } catch(e) {
+        status.style.color = '#ff1e50';
+        status.textContent = '❌ Ошибка: ' + e.message;
+      }
+      input.value = '';
+    }
+    </script>
 
     <!-- DB Size -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;" id="storage-cards">

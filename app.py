@@ -2462,6 +2462,36 @@ def _is_user_revoked(uid: str) -> bool:
     except:
         return False
 
+# ── Admin DB Download / Upload ────────────────────────────────────────────────
+
+@app.route('/admin/db/download')
+def admin_db_download():
+    if not session.get('is_admin'):
+        return redirect('/admin/login')
+    from flask import send_file
+    return send_file(DB_PATH, as_attachment=True,
+                     download_name='signals.db',
+                     mimetype='application/octet-stream')
+
+
+@app.route('/admin/db/upload', methods=['POST'])
+def admin_db_upload():
+    if not session.get('is_admin'):
+        return jsonify({"error": "unauthorized"}), 401
+    file = request.files.get('db_file')
+    if not file:
+        return jsonify({"error": "no file"}), 400
+    import shutil
+    shutil.copy2(DB_PATH, DB_PATH + '.backup')
+    file.save(DB_PATH)
+    try:
+        upload_db(DB_PATH)
+        log.info("[ADMIN] БД загружена вручную и синхронизирована с S3")
+    except Exception as e:
+        log.warning(f"[ADMIN] S3 sync после upload: {e}")
+    return jsonify({"status": "OK", "message": "БД загружена и синхронизирована с S3 ✅"})
+
+
 # ── Admin Login ────────────────────────────────────────────────────────────────
 
 @app.route('/admin/login', methods=['GET', 'POST'])

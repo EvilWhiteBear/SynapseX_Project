@@ -1261,6 +1261,58 @@ def api_entry():
         if direction in ('LONG', 'SHORT'):
             signal['direction'] = direction
 
+        # 4б. Нормализация уровней и расчёт процентов TP/SL
+        signal.setdefault('entry', current_price)
+        signal.setdefault('direction', direction if direction in ('LONG', 'SHORT') else 'LONG')
+        _ep   = float(signal.get('entry') or current_price)
+        _ddir = signal.get('direction', 'LONG')
+        _tp1p = float(signal.get('tp1') or 0)
+        _tp2p = float(signal.get('tp2') or 0)
+        _slp  = float(signal.get('sl')  or 0)
+        # Если tp1/tp2/sl равны нулю — вычисляем из current_price и leverage
+        if not _tp1p or not _tp2p or not _slp:
+            _sl_perc = max(0.008, min(0.025, 0.7 / max(lev, 1)))
+            _tp_perc = _sl_perc * 2.5
+            if _ddir == 'LONG':
+                signal['tp1'] = round(_ep * (1 + _tp_perc),     6)
+                signal['tp2'] = round(_ep * (1 + _tp_perc * 2), 6)
+                signal['sl']  = round(_ep * (1 - _sl_perc),     6)
+            else:
+                signal['tp1'] = round(_ep * (1 - _tp_perc),     6)
+                signal['tp2'] = round(_ep * (1 - _tp_perc * 2), 6)
+                signal['sl']  = round(_ep * (1 + _sl_perc),     6)
+            signal['entry'] = round(_ep, 6)
+            _tp2p = float(signal['tp2'])
+        # tp3 = TP2 + (TP2 - entry)
+        if not signal.get('tp3') and _tp2p and _ep:
+            _gap = abs(_tp2p - _ep)
+            signal['tp3'] = round(_tp2p + _gap if _ddir == 'LONG' else _tp2p - _gap, 6)
+        # Правильная формула процентов: реальное движение цены × плечо
+        entry = float(signal.get('entry', current_price))
+        sl    = float(signal.get('sl', 0))
+        tp1   = float(signal.get('tp1', 0))
+        tp2   = float(signal.get('tp2', 0))
+        tp3   = float(signal.get('tp3', 0) or 0)
+        if entry and sl and tp1:
+            sl_move  = abs(entry - sl)  / entry
+            tp1_move = abs(tp1 - entry) / entry
+            tp2_move = abs(tp2 - entry) / entry
+            tp3_move = abs(tp3 - entry) / entry if tp3 else 0
+            signal['sl_pct']   = round(sl_move  * lev * 100, 1)
+            signal['tp1_pct']  = round(tp1_move * lev * 100, 1)
+            signal['tp2_pct']  = round(tp2_move * lev * 100, 1)
+            signal['tp3_pct']  = round(tp3_move * lev * 100, 1)
+            signal['rr_ratio']  = f"1:{round(tp1_move/sl_move,1)}" if sl_move else "1:1.5"
+            signal['rr2_ratio'] = f"1:{round(tp2_move/sl_move,1)}" if sl_move else "1:3.0"
+            signal['rr3_ratio'] = f"1:{round(tp3_move/sl_move,1)}" if sl_move else "1:5.0"
+        signal.setdefault('sl_pct',    0)
+        signal.setdefault('tp1_pct',   0)
+        signal.setdefault('tp2_pct',   0)
+        signal.setdefault('tp3_pct',   0)
+        signal.setdefault('rr_ratio',  '1:1.5')
+        signal.setdefault('rr2_ratio', '1:3.0')
+        signal.setdefault('rr3_ratio', '1:5.0')
+
         # 5. Строим промпт для AI
         _tp1_pct = signal.get('tp1_pct', 0)
         _tp2_pct = signal.get('tp2_pct', 0)
@@ -1335,57 +1387,7 @@ def api_entry():
             except Exception as _pf_err:
                 log.warning(f"[PORTFOLIO] Entry авто-запись: {_pf_err}")
 
-        # Нормализация raw_signal — гарантируем все поля для фронтенда
-        signal.setdefault('entry', current_price)
-        signal.setdefault('direction', direction if direction in ('LONG','SHORT') else 'LONG')
-        _ep   = float(signal.get('entry') or current_price)
-        _ddir = signal.get('direction', 'LONG')
-        _tp1p = float(signal.get('tp1') or 0)
-        _tp2p = float(signal.get('tp2') or 0)
-        _slp  = float(signal.get('sl')  or 0)
-        # Если tp1/tp2/sl равны нулю — вычисляем из current_price и leverage
-        if not _tp1p or not _tp2p or not _slp:
-            _sl_perc = max(0.008, min(0.025, 0.7 / max(lev, 1)))
-            _tp_perc = _sl_perc * 2.5
-            if _ddir == 'LONG':
-                signal['tp1'] = round(_ep * (1 + _tp_perc),     6)
-                signal['tp2'] = round(_ep * (1 + _tp_perc * 2), 6)
-                signal['sl']  = round(_ep * (1 - _sl_perc),     6)
-            else:
-                signal['tp1'] = round(_ep * (1 - _tp_perc),     6)
-                signal['tp2'] = round(_ep * (1 - _tp_perc * 2), 6)
-                signal['sl']  = round(_ep * (1 + _sl_perc),     6)
-            signal['entry'] = round(_ep, 6)
-            _tp2p = float(signal['tp2'])
-        # tp3 = TP2 + (TP2 - entry)
-        if not signal.get('tp3') and _tp2p and _ep:
-            _gap = abs(_tp2p - _ep)
-            signal['tp3'] = round(_tp2p + _gap if _ddir == 'LONG' else _tp2p - _gap, 6)
-        # Правильная формула процентов: реальное движение цены × плечо
-        _e  = float(signal.get('entry', current_price) or current_price)
-        _sl = float(signal.get('sl',  0) or 0)
-        _t1 = float(signal.get('tp1', 0) or 0)
-        _t2 = float(signal.get('tp2', 0) or 0)
-        _t3 = float(signal.get('tp3', 0) or 0)
-        if _e and _sl and _t1:
-            _sl_move  = abs(_e - _sl) / _e
-            _tp1_move = abs(_t1 - _e) / _e
-            _tp2_move = abs(_t2 - _e) / _e if _t2 else 0
-            _tp3_move = abs(_t3 - _e) / _e if _t3 else 0
-            signal['sl_pct']   = round(_sl_move  * lev * 100, 1)
-            signal['tp1_pct']  = round(_tp1_move * lev * 100, 1)
-            signal['tp2_pct']  = round(_tp2_move * lev * 100, 1)
-            signal['tp3_pct']  = round(_tp3_move * lev * 100, 1)
-            signal['rr_ratio']  = f"1:{round(_tp1_move / _sl_move, 1)}" if _sl_move else "1:1.5"
-            signal['rr2_ratio'] = f"1:{round(_tp2_move / _sl_move, 1)}" if _sl_move else "1:3.0"
-            signal['rr3_ratio'] = f"1:{round(_tp3_move / _sl_move, 1)}" if _sl_move else "1:5.0"
-        signal.setdefault('sl_pct',   0)
-        signal.setdefault('tp1_pct',  0)
-        signal.setdefault('tp2_pct',  0)
-        signal.setdefault('tp3_pct',  0)
-        signal.setdefault('rr_ratio',  '1:1.5')
-        signal.setdefault('rr2_ratio', '1:3.0')
-        signal.setdefault('rr3_ratio', '1:5.0')
+        # Нормализация raw_signal — уровни и проценты уже вычислены в шаге 4б
 
         return jsonify({
             "answer":     ultimatum_formatter(ai_text),

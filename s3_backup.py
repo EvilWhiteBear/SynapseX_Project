@@ -74,6 +74,19 @@ def upload_db(db_path: str) -> bool:
     if not client:
         return False
 
+    # Принудительный checkpoint WAL — сбрасываем данные из -wal файла в основной .db
+    import sqlite3 as _sq
+    try:
+        with _sq.connect(db_path) as _c:
+            _c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            _c.commit()
+        import time as _t
+        _t.sleep(0.2)
+        new_size = os.path.getsize(db_path)
+        log.info(f"[S3] После WAL checkpoint: {new_size}B")
+    except Exception as _e:
+        log.warning(f"[S3] WAL checkpoint: {_e}")
+
     db_size = os.path.getsize(db_path)
     log.info(f"[S3] Загружаем БД: {db_path} размер={db_size}B ({db_size // 1024}KB)")
 

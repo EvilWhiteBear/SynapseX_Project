@@ -428,8 +428,9 @@ cache = _CacheBackend()
 
 def _init_db():
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("PRAGMA journal_mode=WAL")   # Параллельные записи без блокировки
-        conn.execute("PRAGMA synchronous=NORMAL") # Баланс надёжности и скорости
+        conn.execute("PRAGMA journal_mode=WAL")       # Параллельные записи без блокировки
+        conn.execute("PRAGMA synchronous=NORMAL")     # Баланс надёжности и скорости
+        conn.execute("PRAGMA wal_autocheckpoint=100") # Авто-checkpoint каждые 100 страниц
         conn.execute("""
             CREATE TABLE IF NOT EXISTS signals (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,

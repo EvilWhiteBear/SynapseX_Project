@@ -663,6 +663,94 @@ canvas#bg{position:fixed;inset:0;z-index:0;opacity:.09;pointer-events:none;}
       </label>
       <div id="upload-status" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#607080;padding:10px;display:none;"></div>
     </div>
+
+    <!-- Live-статистика -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;margin-bottom:16px;" id="admin-stats-grid">
+      <div class="stat-card"><div id="st-users" class="stat-value">—</div><div class="stat-label">ПОЛЬЗОВАТЕЛЕЙ</div></div>
+      <div class="stat-card"><div id="st-premium" class="stat-value" style="color:#b8ff00">—</div><div class="stat-label">PREMIUM</div></div>
+      <div class="stat-card"><div id="st-trial" class="stat-value" style="color:#00e5ff">—</div><div class="stat-label">TRIAL</div></div>
+      <div class="stat-card"><div id="st-signals-today" class="stat-value">—</div><div class="stat-label">СИГНАЛОВ СЕГОДНЯ</div></div>
+      <div class="stat-card"><div id="st-signals-total" class="stat-value">—</div><div class="stat-label">СИГНАЛОВ ВСЕГО</div></div>
+      <div class="stat-card"><div id="st-db-size" class="stat-value">—</div><div class="stat-label">РАЗМЕР БД</div></div>
+    </div>
+    <script>
+    async function loadAdminStats() {
+      try {
+        const r = await fetch('/admin/api/stats');
+        const d = await r.json();
+        document.getElementById('st-users').textContent         = d.total_users || 0;
+        document.getElementById('st-premium').textContent       = d.premium_users || 0;
+        document.getElementById('st-trial').textContent         = d.trial_users || 0;
+        document.getElementById('st-signals-today').textContent = d.signals_today || 0;
+        document.getElementById('st-signals-total').textContent = d.signals_total || 0;
+        document.getElementById('st-db-size').textContent       = (d.db_size_kb || 0) + ' KB';
+      } catch(e) { console.warn('Stats error:', e); }
+    }
+    loadAdminStats();
+    setInterval(loadAdminStats, 30000);
+    </script>
+
+    <!-- Таблица пользователей -->
+    <div id="users-table-wrap" style="margin-top:20px;overflow-x:auto;">
+      <table style="width:100%;font-family:'Share Tech Mono',monospace;font-size:11px;border-collapse:collapse;">
+        <thead>
+          <tr style="color:rgba(240,244,255,0.4);border-bottom:1px solid rgba(255,255,255,0.1);">
+            <th style="padding:8px;text-align:left;">EMAIL</th>
+            <th style="padding:8px;text-align:left;">СТАТУС</th>
+            <th style="padding:8px;text-align:left;">ДО</th>
+            <th style="padding:8px;text-align:left;">ДЕЙСТВИЯ</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </div>
+    <script>
+    async function loadUsersStorage() {
+      try {
+        const r = await fetch('/admin/api/users');
+        const d = await r.json();
+        const users = d.users || d;
+        const tbody = document.getElementById('users-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = users.map(u => `
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;color:#f0f4ff">${u.email || (u.uid||'').slice(0,12)}</td>
+            <td style="padding:8px">
+              ${u.is_premium
+                ? '<span style="color:#b8ff00">★ PREMIUM</span>'
+                : u.trial_until
+                ? '<span style="color:#00e5ff">⏱ TRIAL</span>'
+                : '<span style="color:rgba(240,244,255,0.3)">FREE</span>'}
+            </td>
+            <td style="padding:8px;color:rgba(240,244,255,0.4);font-size:10px">
+              ${u.premium_until ? u.premium_until.slice(0,10) : '—'}
+            </td>
+            <td style="padding:8px">
+              <button onclick="setPremiumStorage('${u.uid}', ${!u.is_premium})"
+                style="padding:4px 10px;font-size:10px;cursor:pointer;
+                       background:${u.is_premium ? 'rgba(255,30,80,0.15)' : 'rgba(184,255,0,0.15)'};
+                       border:1px solid ${u.is_premium ? 'rgba(255,30,80,0.4)' : 'rgba(184,255,0,0.4)'};
+                       color:${u.is_premium ? '#ff1e50' : '#b8ff00'};
+                       font-family:inherit;">
+                ${u.is_premium ? 'УБРАТЬ' : 'ДАТЬ PREMIUM'}
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch(e) { console.warn('Users error:', e); }
+    }
+    async function setPremiumStorage(uid, give) {
+      await fetch(`/admin/api/users/${uid}/premium`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({is_premium: give, days: 30})
+      });
+      loadUsersStorage();
+      loadAdminStats();
+    }
+    loadUsersStorage();
+    </script>
+
     <script>
     async function uploadDB(input) {
       const file = input.files[0];

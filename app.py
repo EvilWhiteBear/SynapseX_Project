@@ -2578,19 +2578,27 @@ def admin_panel():
 @app.route('/admin/api/stats')
 def admin_api_stats():
     if not session.get('is_admin'):
-        return jsonify({"error":"UNAUTHORIZED"}), 401
+        return jsonify({"error": "unauthorized"}), 401
     try:
         with sqlite3.connect(DB_PATH) as conn:
-            conn.row_factory = sqlite3.Row
-            total    = conn.execute("SELECT COUNT(*) as n FROM signals").fetchone()['n']
-            by_dir   = conn.execute("SELECT direction, COUNT(*) as n FROM signals GROUP BY direction").fetchall()
-            by_asset = conn.execute("SELECT asset, COUNT(*) as n FROM signals GROUP BY asset ORDER BY n DESC LIMIT 10").fetchall()
-            avg_pos  = conn.execute("SELECT AVG(position_sz) as avg FROM signals").fetchone()['avg']
+            total_users   = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            premium_users = conn.execute("SELECT COUNT(*) FROM users WHERE is_premium=1").fetchone()[0]
+            trial_users   = conn.execute("SELECT COUNT(*) FROM users WHERE trial_until > datetime('now')").fetchone()[0]
+            signals_today = conn.execute("SELECT COUNT(*) FROM signals WHERE date(created_at)=date('now')").fetchone()[0]
+            signals_total = conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+            try:
+                trades_total = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
+            except Exception:
+                trades_total = 0
+        db_size = os.path.getsize(DB_PATH)
         return jsonify({
-            "total_signals":   total,
-            "by_direction":    {r['direction']: r['n'] for r in by_dir},
-            "top_assets":      [{r['asset']: r['n']} for r in by_asset],
-            "avg_position_sz": round(avg_pos or 0, 2),
+            "total_users":    total_users,
+            "premium_users":  premium_users,
+            "trial_users":    trial_users,
+            "signals_today":  signals_today,
+            "signals_total":  signals_total,
+            "trades_total":   trades_total,
+            "db_size_kb":     round(db_size / 1024, 1),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -2822,6 +2830,33 @@ def admin_online():
         return jsonify({"error": str(e), "count": 0, "users": []}), 500
 
 
+# ── Назначить/снять Premium по UID в URL ──────────────────────────────────────
+@app.route('/admin/api/users/<uid>/premium', methods=['POST'])
+def admin_set_premium_by_uid(uid):
+    if not session.get('is_admin'):
+        return jsonify({"error": "unauthorized"}), 401
+    data       = request.get_json() or {}
+    is_premium = data.get('is_premium', True)
+    days       = data.get('days', 30)
+    until      = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                "UPDATE users SET is_premium=?, premium_until=? WHERE uid=?",
+                (1 if is_premium else 0, until if is_premium else None, uid)
+            )
+            conn.commit()
+        try:
+            from s3_backup import upload_db as _s3
+            _s3(DB_PATH)
+        except Exception:
+            pass
+        log.info(f"[ADMIN] Premium {'выдан' if is_premium else 'снят'} uid={uid} days={days}")
+        return jsonify({"status": "OK", "uid": uid, "is_premium": is_premium})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Назначить/снять Premium ───────────────────────────────────────────────────
 @app.route('/admin/api/users/premium', methods=['POST'])
 @_require_admin
@@ -3048,7 +3083,7 @@ if _portfolio_ready:
 # Запускаем полную очистку всех таблиц (signals + trades + screener + error_log)
 _start_full_cleanup_scheduler(DB_PATH)
 _start_db_backup_scheduler()   # автобэкап в Telegram каждые 6ч
-start_s3_sync_scheduler(DB_PATH, interval_hours=6)  # синхронизация с S3
+start_s3_sync_scheduler(DB_PATH, interval_sec=1800)  # синхронизация с S3 каждые 30 мин
 threading.Thread(target=_warm_cache, daemon=True).start()
 
 

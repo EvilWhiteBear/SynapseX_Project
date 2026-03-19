@@ -288,15 +288,18 @@ def _risk_manager(signal, asset, tech, smc):
         f"ВЫВОД РИСК МЕНЕДЖЕРА: [2-3 предложения]"
     )
     try:
-        r = requests.post(GROQ_URL,
+        r = requests.post(
+            GROQ_URL,
             json={"model": "llama-3.1-8b-instant",
                   "messages": [{"role": "user", "content": prompt}],
-                  "temperature": 0.05, "max_tokens": 450},
+                  "temperature": 0.05, "max_tokens": 500},
             headers={"Authorization": f"Bearer {GROQ_KEY}",
-                     "Content-Type": "application/json"}, timeout=20)
+                     "Content-Type": "application/json"},
+            timeout=15
+        )
         r.raise_for_status()
         text = r.json()["choices"][0]["message"]["content"]
-        return {"role": "Риск Менеджер", "model": "llama-3.1-8b-instant",
+        return {"role": "Риск Менеджер", "model": "llama-3.1-8b",
                 "text": text, "direction": _parse_direction(text),
                 "confidence": _parse_confidence(text)}
     except Exception as e:
@@ -371,25 +374,22 @@ def get_consensus(signal: dict, asset: str, db_path: str = "signals.db") -> dict
     _tp2_ai = _parse_price(rt, "ТЕЙК-ПРОФИТ 2") or signal.get("tp2", 0)
     _tp3_ai = _parse_price(rt, "ТЕЙК-ПРОФИТ 3") or signal.get("tp3", 0)
 
-    # Валидация направления: если AI дал перевёрнутые уровни — берём algo-уровни
-    def _valid(lvl: float, above: bool) -> bool:
-        if not lvl or not entry: return False
-        return (lvl > entry) if above else (lvl < entry)
+    # Валидация уровней: каждый уровень проверяется независимо
+    sl  = _sl_ai
+    tp1 = _tp1_ai
+    tp2 = _tp2_ai
+    tp3 = _tp3_ai
 
     if final_dir == "LONG":
-        tp_ok = _valid(_tp1_ai, True) and _valid(_tp2_ai, True) and _valid(_tp3_ai, True)
-        sl_ok = _valid(_sl_ai, False)
-    else:
-        tp_ok = _valid(_tp1_ai, False) and _valid(_tp2_ai, False) and _valid(_tp3_ai, False)
-        sl_ok = _valid(_sl_ai, True)
-
-    sl  = _sl_ai  if sl_ok  else signal.get("sl",  0)
-    tp1 = _tp1_ai if tp_ok  else signal.get("tp1", 0)
-    tp2 = _tp2_ai if tp_ok  else signal.get("tp2", 0)
-    tp3 = _tp3_ai if tp_ok  else signal.get("tp3", 0)
-
-    if not tp_ok or not sl_ok:
-        log.warning(f"[CONSENSUS] AI уровни перевёрнуты для {final_dir} (entry={entry}), используем algo-уровни")
+        if tp1 and tp1 < entry: tp1 = signal.get("tp1", 0)
+        if tp2 and tp2 < entry: tp2 = signal.get("tp2", 0)
+        if tp3 and tp3 < entry: tp3 = signal.get("tp3", 0)
+        if sl  and sl  > entry: sl  = signal.get("sl",  0)
+    elif final_dir == "SHORT":
+        if tp1 and tp1 > entry: tp1 = signal.get("tp1", 0)
+        if tp2 and tp2 > entry: tp2 = signal.get("tp2", 0)
+        if tp3 and tp3 > entry: tp3 = signal.get("tp3", 0)
+        if sl  and sl  < entry: sl  = signal.get("sl",  0)
 
     elapsed = round(time.time() - t0, 1)
     log.info(f"[CONSENSUS] Done {elapsed}s: {final_dir} ({avg_conf}%) {label}")

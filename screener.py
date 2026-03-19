@@ -37,18 +37,21 @@ if _base not in sys.path:
 # ══════════════════════════════════════════════════════════════════════════════
 
 SCREENER_ASSETS = [
-    # Топ по капитализации
-    "BTC-USDT", "ETH-USDT", "SOL-USDT", "BNB-USDT", "XRP-USDT",
-    # DeFi & L1/L2
-    "AVAX-USDT", "LINK-USDT", "DOT-USDT", "NEAR-USDT", "APT-USDT",
-    "ARB-USDT", "OP-USDT", "INJ-USDT", "SUI-USDT", "TON-USDT",
-    # Мемы и трендовые
-    "DOGE-USDT", "PEPE-USDT", "WIF-USDT", "TRUMP-USDT",
-    # DeFi протоколы
-    "UNI-USDT", "AAVE-USDT", "CRV-USDT", "LDO-USDT",
-    # Другие популярные
-    "ADA-USDT", "TRX-USDT", "LTC-USDT", "ATOM-USDT",
-    "FIL-USDT", "HBAR-USDT", "ICP-USDT", "HYPE-USDT",
+    'BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT', 'XRP-USDT',
+    'ADA-USDT', 'DOGE-USDT', 'AVAX-USDT', 'DOT-USDT', 'MATIC-USDT',
+    'LINK-USDT', 'UNI-USDT', 'ATOM-USDT', 'LTC-USDT', 'ETC-USDT',
+    'FIL-USDT', 'NEAR-USDT', 'APT-USDT', 'ARB-USDT', 'OP-USDT',
+    'SUI-USDT', 'INJ-USDT', 'TIA-USDT', 'SEI-USDT', 'JTO-USDT',
+    'WIF-USDT', 'BONK-USDT', 'PEPE-USDT', 'FLOKI-USDT', 'SHIB-USDT',
+    'BCH-USDT', 'TRX-USDT', 'TON-USDT', 'SAND-USDT', 'MANA-USDT',
+    'AXS-USDT', 'GALA-USDT', 'ENJ-USDT', 'CHZ-USDT', 'FLOW-USDT',
+    'ICP-USDT', 'FTM-USDT', 'ALGO-USDT', 'VET-USDT', 'THETA-USDT',
+    'EGLD-USDT', 'XLM-USDT', 'XMR-USDT', 'EOS-USDT', 'IOTA-USDT',
+    'ZEC-USDT', 'DASH-USDT', 'NEO-USDT', 'WAVES-USDT', 'KAVA-USDT',
+    'GMT-USDT', 'STX-USDT', 'CFX-USDT', 'BLUR-USDT', 'MAGIC-USDT',
+    'DYDX-USDT', 'IMX-USDT', 'LDO-USDT', 'CRV-USDT', 'AAVE-USDT',
+    'MKR-USDT', 'SNX-USDT', 'COMP-USDT', 'YFI-USDT', 'SUSHI-USDT',
+    '1000SHIB-USDT', '1000PEPE-USDT', '1000BONK-USDT', '1000FLOKI-USDT',
 ]
 
 # ── Дисклеймер ────────────────────────────────────────────────────────────────

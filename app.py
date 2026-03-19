@@ -275,6 +275,27 @@ TEXTS = {
     }
 }
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  СПИСОК ФЬЮЧЕРСНЫХ ПАР (терминал + скринер)
+# ══════════════════════════════════════════════════════════════════════════════
+FUTURES_PAIRS = [
+    'BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT', 'XRP-USDT',
+    'ADA-USDT', 'DOGE-USDT', 'AVAX-USDT', 'DOT-USDT', 'MATIC-USDT',
+    'LINK-USDT', 'UNI-USDT', 'ATOM-USDT', 'LTC-USDT', 'ETC-USDT',
+    'FIL-USDT', 'NEAR-USDT', 'APT-USDT', 'ARB-USDT', 'OP-USDT',
+    'SUI-USDT', 'INJ-USDT', 'TIA-USDT', 'SEI-USDT', 'JTO-USDT',
+    'WIF-USDT', 'BONK-USDT', 'PEPE-USDT', 'FLOKI-USDT', 'SHIB-USDT',
+    'BCH-USDT', 'TRX-USDT', 'TON-USDT', 'SAND-USDT', 'MANA-USDT',
+    'AXS-USDT', 'GALA-USDT', 'ENJ-USDT', 'CHZ-USDT', 'FLOW-USDT',
+    'ICP-USDT', 'FTM-USDT', 'ALGO-USDT', 'VET-USDT', 'THETA-USDT',
+    'EGLD-USDT', 'XLM-USDT', 'XMR-USDT', 'EOS-USDT', 'IOTA-USDT',
+    'ZEC-USDT', 'DASH-USDT', 'NEO-USDT', 'WAVES-USDT', 'KAVA-USDT',
+    'GMT-USDT', 'STX-USDT', 'CFX-USDT', 'BLUR-USDT', 'MAGIC-USDT',
+    'DYDX-USDT', 'IMX-USDT', 'LDO-USDT', 'CRV-USDT', 'AAVE-USDT',
+    'MKR-USDT', 'SNX-USDT', 'COMP-USDT', 'YFI-USDT', 'SUSHI-USDT',
+    '1000SHIB-USDT', '1000PEPE-USDT', '1000BONK-USDT', '1000FLOKI-USDT',
+]
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  ① RATE LIMITER — скользящее окно, без внешних зависимостей
@@ -1335,28 +1356,37 @@ def api_entry():
                 signal['tp1'] = round(_ep * (1 - _tp_perc),     6)
                 signal['tp2'] = round(_ep * (1 - _tp_perc * 2), 6)
                 signal['sl']  = round(_ep * (1 + _sl_perc),     6)
-            signal['entry']    = round(_ep, 6)
-            signal['tp1_pct']  = round(_tp_perc * 2.5 * lev * 100, 1)
-            signal['tp2_pct']  = round(_tp_perc * 5.0 * lev * 100, 1)
-            signal['sl_pct']   = round(_sl_perc * lev * 100, 1)
-            signal['rr_ratio'] = f"1:{round(signal['tp1_pct'] / max(signal['sl_pct'], 0.01), 1)}"
-            signal['rr2_ratio']= f"1:{round(signal['tp2_pct'] / max(signal['sl_pct'], 0.01), 1)}"
+            signal['entry'] = round(_ep, 6)
             _tp2p = float(signal['tp2'])
-        _t1pc = float(signal.get('tp1_pct') or 0)
-        _t2pc = float(signal.get('tp2_pct') or 0)
-        _slpc = float(signal.get('sl_pct')  or 0)
         # tp3 = TP2 + (TP2 - entry)
         if not signal.get('tp3') and _tp2p and _ep:
             _gap = abs(_tp2p - _ep)
             signal['tp3'] = round(_tp2p + _gap if _ddir == 'LONG' else _tp2p - _gap, 6)
-        if not signal.get('tp3_pct') and _t2pc:
-            signal['tp3_pct'] = round(_t2pc * 1.5, 1)
-        signal.setdefault('rr2_ratio', f"1:{round(_t2pc / max(_slpc, 0.01), 1)}" if _slpc else '1:5.0')
-        signal.setdefault('rr_ratio',  '1:2.5')
-        signal.setdefault('tp1_pct',   _t1pc)
-        signal.setdefault('tp2_pct',   _t2pc)
-        signal.setdefault('sl_pct',    _slpc)
-        signal.setdefault('tp3_pct',   round(_t2pc * 1.5, 1))
+        # Правильная формула процентов: реальное движение цены × плечо
+        _e  = float(signal.get('entry', current_price) or current_price)
+        _sl = float(signal.get('sl',  0) or 0)
+        _t1 = float(signal.get('tp1', 0) or 0)
+        _t2 = float(signal.get('tp2', 0) or 0)
+        _t3 = float(signal.get('tp3', 0) or 0)
+        if _e and _sl and _t1:
+            _sl_move  = abs(_e - _sl) / _e
+            _tp1_move = abs(_t1 - _e) / _e
+            _tp2_move = abs(_t2 - _e) / _e if _t2 else 0
+            _tp3_move = abs(_t3 - _e) / _e if _t3 else 0
+            signal['sl_pct']   = round(_sl_move  * lev * 100, 1)
+            signal['tp1_pct']  = round(_tp1_move * lev * 100, 1)
+            signal['tp2_pct']  = round(_tp2_move * lev * 100, 1)
+            signal['tp3_pct']  = round(_tp3_move * lev * 100, 1)
+            signal['rr_ratio']  = f"1:{round(_tp1_move / _sl_move, 1)}" if _sl_move else "1:1.5"
+            signal['rr2_ratio'] = f"1:{round(_tp2_move / _sl_move, 1)}" if _sl_move else "1:3.0"
+            signal['rr3_ratio'] = f"1:{round(_tp3_move / _sl_move, 1)}" if _sl_move else "1:5.0"
+        signal.setdefault('sl_pct',   0)
+        signal.setdefault('tp1_pct',  0)
+        signal.setdefault('tp2_pct',  0)
+        signal.setdefault('tp3_pct',  0)
+        signal.setdefault('rr_ratio',  '1:1.5')
+        signal.setdefault('rr2_ratio', '1:3.0')
+        signal.setdefault('rr3_ratio', '1:5.0')
 
         return jsonify({
             "answer":     ultimatum_formatter(ai_text),
@@ -1664,7 +1694,8 @@ def terminal():
         session.clear()
         return redirect(url_for('login'))
     lang       = session.get('lang', 'RU')
-    top_assets = collector.get_top_100_mexc()
+    top_assets = [{"symbol": s, "base": s.split('-')[0], "change": "+0.00%", "price": 0, "volume": 0}
+                  for s in FUTURES_PAIRS]
     # Достаём профиль пользователя
     user_data  = {}
     first_visit = False

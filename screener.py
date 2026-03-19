@@ -531,6 +531,8 @@ class AutoScreener:
         self.groq_key       = groq_key
         self.cp_key         = cryptopanic_key
         self.tg_channel_tok = tg_token_channel
+        # channel_id из os.getenv('CHANNEL_ID') через app.py.
+        # Приватный канал: используй числовой ID (-1001234567890), не @username.
         self.channel_id     = channel_id
         self.tg_dm_tok      = tg_token_dm
         self._running       = False

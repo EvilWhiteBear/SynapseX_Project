@@ -58,8 +58,32 @@ def _send_email(to_email: str, subject: str, html_body: str) -> bool:
 
         log.info(f"[EMAIL] ✅ Отправлено: {subject} → {to_email}")
         return True
-    except Exception as e:
-        log.error(f"[EMAIL] ❌ Ошибка отправки на {to_email}: {e}")
+    except Exception as smtp_err:
+        log.warning(f"[EMAIL] SMTP недоступен: {smtp_err} — отправляем через Telegram")
+        try:
+            import re as _re
+            import requests as _req
+            tg_token = os.getenv('TELEGRAM_TOKEN', '') or os.getenv('TG_TOKEN', '')
+            admin_id = os.getenv('ADMIN_CHAT_ID', '')
+            if tg_token and admin_id:
+                # Убираем HTML-теги для Telegram
+                body = _re.sub(r'<[^>]+>', '', html_body)
+                body = _re.sub(r'\n{3,}', '\n\n', body).strip()
+                tg_msg = (
+                    f"📧 Email уведомление (SMTP недоступен):\n"
+                    f"Кому: {to_email}\n"
+                    f"Тема: {subject}\n\n"
+                    f"{body[:500]}"
+                )
+                _req.post(
+                    f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                    json={"chat_id": admin_id, "text": tg_msg},
+                    timeout=5
+                )
+                log.info(f"[EMAIL] Telegram fallback отправлен admin_id={admin_id}")
+                return True
+        except Exception as tg_err:
+            log.error(f"[EMAIL] Telegram fallback тоже не сработал: {tg_err}")
         return False
 
 

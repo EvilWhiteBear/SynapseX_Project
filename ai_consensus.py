@@ -95,8 +95,8 @@ def _signal_history(asset: str, db_path: str) -> str:
         import sqlite3
         with sqlite3.connect(db_path) as conn:
             rows = conn.execute(
-                "SELECT direction, confidence, created_at FROM signals "
-                "WHERE asset=? ORDER BY created_at DESC LIMIT 5", (asset,)
+                "SELECT direction, confidence, ts FROM signals "
+                "WHERE asset=? ORDER BY ts DESC LIMIT 5", (asset,)
             ).fetchall()
         if not rows:
             return "История: нет данных"

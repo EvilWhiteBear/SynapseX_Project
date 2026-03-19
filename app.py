@@ -484,54 +484,6 @@ def _init_db():
     log.info(f"[DB] SQLite инициализирован: {DB_PATH}")
 
 
-def _init_users_db():
-    """Создаёт таблицу users если не существует."""
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    uid                TEXT PRIMARY KEY,
-                    email              TEXT,
-                    name               TEXT,
-                    photo              TEXT,
-                    last_seen          TEXT,
-                    created_at         TEXT,
-                    is_revoked         INTEGER DEFAULT 0,
-                    is_premium         INTEGER DEFAULT 0,
-                    daily_limit        INTEGER DEFAULT -1,
-                    signals_today      INTEGER DEFAULT 0,
-                    last_reset         TEXT    DEFAULT '',
-                    stripe_customer_id TEXT    DEFAULT '',
-                    ref_code           TEXT    DEFAULT '',
-                    referred_by        TEXT    DEFAULT '',
-                    premium_until      TEXT    DEFAULT '',
-                    telegram_chat_id   TEXT    DEFAULT '',
-                    tg_alerts_enabled  INTEGER DEFAULT 1
-                )
-            """)
-            # ALTER TABLE для старых БД — добавляем колонки если нет
-            for col, defn in [
-                ('is_premium',         'INTEGER DEFAULT 0'),
-                ('daily_limit',        'INTEGER DEFAULT -1'),
-                ('signals_today',      'INTEGER DEFAULT 0'),
-                ('last_reset',         "TEXT DEFAULT ''"),
-                ('stripe_customer_id', "TEXT DEFAULT ''"),
-                ('ref_code',           "TEXT DEFAULT ''"),
-                ('referred_by',        "TEXT DEFAULT ''"),
-                ('premium_until',      "TEXT DEFAULT ''"),
-                ('telegram_chat_id',   "TEXT DEFAULT ''"),
-                ('tg_alerts_enabled',  'INTEGER DEFAULT 1'),
-                ('trial_until',        "TEXT DEFAULT ''"),
-            ]:
-                try:
-                    conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
-                except Exception:
-                    pass
-            conn.commit()
-    except Exception as e:
-        log.error(f"[AUTH] users table error: {e}")
-
-
 def _save_signal(asset: str, signal: dict, ai_answer: str,
                  leverage: int, margin: float, ip: str):
     """Вызывается из фонового потока."""
@@ -2584,7 +2536,7 @@ def admin_api_stats():
             total_users   = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
             premium_users = conn.execute("SELECT COUNT(*) FROM users WHERE is_premium=1").fetchone()[0]
             trial_users   = conn.execute("SELECT COUNT(*) FROM users WHERE trial_until > datetime('now')").fetchone()[0]
-            signals_today = conn.execute("SELECT COUNT(*) FROM signals WHERE date(created_at)=date('now')").fetchone()[0]
+            signals_today = conn.execute("SELECT COUNT(*) FROM signals WHERE date(ts)=date('now')").fetchone()[0]
             signals_total = conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
             try:
                 trades_total = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]

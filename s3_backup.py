@@ -75,7 +75,7 @@ def upload_db(db_path: str) -> bool:
         return False
 
     db_size = os.path.getsize(db_path)
-    log.info(f"[S3] Загружаем БД на S3: {db_size}B ({db_size // 1024}KB)")
+    log.info(f"[S3] Загружаем БД: {db_path} размер={db_size}B ({db_size // 1024}KB)")
 
     for attempt in range(1, 4):
         try:

@@ -1246,11 +1246,24 @@ def api_entry():
         tp1   = float(signal.get('tp1', 0))
         tp2   = float(signal.get('tp2', 0))
         tp3   = float(signal.get('tp3', 0) or 0)
+        direction = signal.get('direction', 'LONG')
+        # Санитарная проверка направленности уровней
+        if direction == 'LONG':
+            if tp1 and tp1 < entry: tp1 = entry * 1.015
+            if tp2 and tp2 < entry: tp2 = entry * 1.030
+            if sl  and sl  > entry: sl  = entry * 0.985
+        elif direction == 'SHORT':
+            if tp1 and tp1 > entry: tp1 = entry * 0.985
+            if tp2 and tp2 > entry: tp2 = entry * 0.970
+            if sl  and sl  < entry: sl  = entry * 1.015
+        signal['tp1'] = round(tp1, 6)
+        signal['tp2'] = round(tp2, 6)
+        signal['sl']  = round(sl,  6)
         if entry and sl and tp1:
             sl_move  = abs(entry - sl)  / entry
             tp1_move = abs(tp1 - entry) / entry
             tp2_move = abs(tp2 - entry) / entry
-            tp3_move = abs(tp3 - entry) / entry if tp3 else 0
+            tp3_move = abs(tp3 - entry) / entry if tp3 else tp2_move * 1.5
             signal['sl_pct']   = round(sl_move  * lev * 100, 1)
             signal['tp1_pct']  = round(tp1_move * lev * 100, 1)
             signal['tp2_pct']  = round(tp2_move * lev * 100, 1)
@@ -2527,6 +2540,36 @@ def admin_panel():
     return render_template('admin.html')
 
 # ── Admin API ──────────────────────────────────────────────────────────────────
+
+@app.route('/admin/api/test/telegram', methods=['POST'])
+def admin_test_telegram():
+    if not session.get('is_admin'):
+        return jsonify({"error": "unauthorized"}), 401
+    import requests as _req
+    token        = os.getenv('TELEGRAM_TOKEN', '')
+    tg_token2    = os.getenv('TELEGRAM_TOKEN_TERMINAL', '')
+    tg_analytics = os.getenv('TG_TOKEN_ANALYTICS', token)
+    channel_id   = os.getenv('CHANNEL_ID', '')
+    results = {}
+    for name, tok in [
+        ('TELEGRAM_TOKEN', token),
+        ('TELEGRAM_TOKEN_TERMINAL', tg_token2),
+        ('TG_TOKEN_ANALYTICS', tg_analytics)
+    ]:
+        if not tok:
+            results[name] = 'не задан'
+            continue
+        try:
+            r = _req.post(
+                f"https://api.telegram.org/bot{tok}/sendMessage",
+                json={"chat_id": channel_id, "text": f"🧪 Test {name}"},
+                timeout=5
+            )
+            results[name] = r.json()
+        except Exception as e:
+            results[name] = str(e)
+    return jsonify({"channel_id": channel_id, "results": results})
+
 
 @app.route('/admin/api/stats')
 def admin_api_stats():

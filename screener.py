@@ -676,7 +676,7 @@ class AutoScreener:
                 timeout=10
             )
             if not resp.ok:
-                logger.warning(f"[TG] {resp.status_code}: {resp.text[:120]}")
+                logger.warning(f"[TG] CHANNEL_ID={chat_id!r} токен={token[:20] if token else 'пустой'} ошибка: {resp.text}")
             return resp.ok
         except Exception as e:
             logger.warning(f"[TG_SEND] {chat_id}: {e}")

@@ -644,6 +644,7 @@ canvas#bg{position:fixed;inset:0;z-index:0;opacity:.09;pointer-events:none;}
       <div style="display:flex;gap:8px;">
         <button onclick="loadStorage()" class="btn-action">🔄 Обновить</button>
         <button onclick="runDbBackup()" class="btn-action" style="background:rgba(0,229,255,0.1);border-color:rgba(0,229,255,0.3);">💾 Бэкап в Telegram</button>
+        <button onclick="testTelegram()" style="padding:8px 16px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.4);color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;cursor:pointer;">📢 ТЕСТ КАНАЛА</button>
         <button onclick="runCleanup(60)" class="btn-action" style="background:rgba(255,179,0,0.1);border-color:rgba(255,179,0,0.3);">🗑 Очистить 60д+</button>
         <button onclick="runCleanup(30)" class="btn-action btn-danger">⚠ Очистить 30д+</button>
       </div>
@@ -1558,6 +1559,12 @@ async function loadStorage() {
         ` &nbsp;|&nbsp; Хранение: <b style="color:var(--acid)">${d.retention_days||60} дней</b>`;
     }
   } catch(e) { console.error('storage:', e); }
+}
+
+async function testTelegram() {
+  const r = await fetch('/admin/api/test/telegram', {method:'POST'});
+  const d = await r.json();
+  alert(JSON.stringify(d, null, 2));
 }
 
 async function runDbBackup() {

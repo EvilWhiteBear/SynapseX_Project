@@ -287,13 +287,12 @@ FUTURES_PAIRS = [
     'WIF-USDT', 'BONK-USDT', 'PEPE-USDT', 'FLOKI-USDT', 'SHIB-USDT',
     'BCH-USDT', 'TRX-USDT', 'TON-USDT', 'SAND-USDT', 'MANA-USDT',
     'AXS-USDT', 'GALA-USDT', 'ENJ-USDT', 'CHZ-USDT', 'FLOW-USDT',
-    'ICP-USDT', 'FTM-USDT', 'ALGO-USDT', 'VET-USDT', 'THETA-USDT',
-    'EGLD-USDT', 'XLM-USDT', 'XMR-USDT', 'EOS-USDT', 'IOTA-USDT',
+    'ICP-USDT', 'ALGO-USDT', 'VET-USDT',
+    'EGLD-USDT', 'XLM-USDT', 'XMR-USDT', 'IOTA-USDT',
     'ZEC-USDT', 'DASH-USDT', 'NEO-USDT', 'WAVES-USDT', 'KAVA-USDT',
-    'GMT-USDT', 'STX-USDT', 'CFX-USDT', 'BLUR-USDT', 'MAGIC-USDT',
+    'STX-USDT', 'CFX-USDT', 'BLUR-USDT', 'MAGIC-USDT',
     'DYDX-USDT', 'IMX-USDT', 'LDO-USDT', 'CRV-USDT', 'AAVE-USDT',
-    'MKR-USDT', 'SNX-USDT', 'COMP-USDT', 'YFI-USDT', 'SUSHI-USDT',
-    '1000SHIB-USDT', '1000PEPE-USDT', '1000BONK-USDT', '1000FLOKI-USDT',
+    'SNX-USDT', 'COMP-USDT', 'YFI-USDT', 'SUSHI-USDT',
 ]
 
 
@@ -2515,11 +2514,14 @@ def admin_db_upload():
     import shutil
     shutil.copy2(DB_PATH, DB_PATH + '.backup')
     file.save(DB_PATH)
+    import time
+    time.sleep(0.5)  # дай файлу записаться
     try:
-        upload_db(DB_PATH)
-        log.info("[ADMIN] БД загружена вручную и синхронизирована с S3")
+        from s3_backup import upload_db as _upload_db
+        result = _upload_db(DB_PATH)
+        log.info(f"[ADMIN] S3 sync: {result}")
     except Exception as e:
-        log.warning(f"[ADMIN] S3 sync после upload: {e}")
+        log.error(f"[ADMIN] S3 sync error: {e}")
     return jsonify({"status": "OK", "message": "БД загружена и синхронизирована с S3 ✅"})
 
 

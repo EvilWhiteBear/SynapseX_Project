@@ -1075,10 +1075,43 @@ function renderWatchlist(livePrices) {
     });
 }
 
-// Live-обновление цен в watchlist
+// Live-обновление цен в watchlist (первые 20 — быстро)
+let _lazyLoaded = false;
+let _lazySetup  = false;
+
+async function loadRemainingPrices() {
+    if (_lazyLoaded) return;
+    _lazyLoaded = true;
+    try {
+        const syms = topAssets.slice(20).map(a => a.symbol).join(',');
+        if (!syms) return;
+        const r = await fetch('/api/prices?symbols=' + syms);
+        if (!r.ok) return;
+        const data = await r.json();
+        renderWatchlist(data);
+    } catch(e) {}
+}
+
+function setupLazyLoad() {
+    if (_lazySetup || topAssets.length <= 20) return;
+    _lazySetup = true;
+    const container = document.getElementById('watchlist-container');
+    if (!container) return;
+    // Добавляем sentinel в конец списка
+    const sentinel = document.createElement('div');
+    sentinel.id = 'watchlist-sentinel';
+    sentinel.style.height = '1px';
+    container.appendChild(sentinel);
+    // IntersectionObserver относительно скролл-контейнера
+    new IntersectionObserver(
+        (entries) => { if (entries[0].isIntersecting) loadRemainingPrices(); },
+        { root: container, threshold: 0 }
+    ).observe(sentinel);
+}
+
 async function updateWatchlistPrices() {
     try {
-        const syms = topAssets.slice(0, 65).map(a => a.symbol).join(',');
+        const syms = topAssets.slice(0, 20).map(a => a.symbol).join(',');
         const r = await fetch('/api/prices?symbols=' + syms);
         if (!r.ok) {
             console.warn('[watchlist] /api/prices failed:', r.status, r.statusText);
@@ -1086,6 +1119,7 @@ async function updateWatchlistPrices() {
         }
         const data = await r.json();
         renderWatchlist(data);
+        setupLazyLoad();  // настраиваем lazy load после первого рендера
     } catch(e) {}
 }
 

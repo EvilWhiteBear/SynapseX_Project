@@ -1145,6 +1145,7 @@ def _check_and_increment_daily(uid: str) -> dict:
 
 # ── Стандартные импорты для routes ───────────────────────────────────────────
 import os, sqlite3, threading, time, json, collections, functools
+from concurrent.futures import ThreadPoolExecutor, as_completed
 # import requests  # already imported in app_core
 # from datetime import datetime, timezone, timedelta  # already imported in app_core
 from flask import (
@@ -1158,15 +1159,16 @@ APP_BUILD   = "2026-03-14"
 
 @app.route('/api/prices')
 def api_prices():
-    """Возвращает цены + 24h change как обычный JSON (не SSE стрим)."""
+    """Возвращает цены + 24h change, параллельные запросы через ThreadPoolExecutor."""
     try:
         symbols  = request.args.get('symbols', 'BTC-USDT,ETH-USDT,SOL-USDT,BNB-USDT,XRP-USDT')
         sym_list = [s.strip() for s in symbols.split(',') if s.strip()][:65]
         result   = {}
-        for sym in sym_list:
+
+        def fetch_one(sym):
             try:
                 data = collector.get_ticker_24h(sym)
-                result[sym] = {
+                return sym, {
                     "price":      data.get('price', 0),
                     "change_24h": data.get('change_24h', data.get('change_pct', 0)),
                     "high":       data.get('high', data.get('high_24h', 0)),
@@ -1176,13 +1178,23 @@ def api_prices():
             except Exception:
                 try:
                     live = collector.get_live_metrics(sym)
-                    result[sym] = {"price": live.get('price', 0), "change_24h": 0, "status": "fallback"}
+                    return sym, {"price": live.get('price', 0), "change_24h": 0, "status": "fallback"}
                 except Exception:
-                    result[sym] = {"price": 0, "change_24h": 0, "status": "ERROR"}
+                    return sym, {"price": 0, "change_24h": 0, "status": "ERROR"}
+
+        with ThreadPoolExecutor(max_workers=10) as pool:
+            futures = {pool.submit(fetch_one, sym): sym for sym in sym_list}
+            for future in as_completed(futures, timeout=8):
+                try:
+                    sym, data = future.result()
+                    result[sym] = data
+                except Exception:
+                    pass
+
         return jsonify(result)
     except Exception as e:
         log.error(f"[api/prices] Error: {e}")
-        return jsonify({}), 200  # возвращаем пустой dict вместо 500
+        return jsonify({}), 200
 
 
 def check_synx_balance(wallet_address: str) -> dict:

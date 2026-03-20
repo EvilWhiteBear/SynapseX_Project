@@ -462,7 +462,7 @@ async function startPaddlePayment() {
 
 async function subscribe() {
   if (_selectedCurrency === 'synx') {
-    await connectPhantom();
+    await connectSolanaWallet();
     return;
   }
   const btn = document.getElementById('cta-btn');
@@ -609,58 +609,129 @@ async function checkStatus() {
   } catch(e) { console.error(e); }
 }
 
-async function connectPhantom() {
+async function connectSolanaWallet() {
   const btn = document.getElementById('cta-btn');
   btn.disabled = true;
-  const statusEl = document.getElementById('wallet-status');
+
   try {
-    if (!window.solana || !window.solana.isPhantom) {
-      window.open('https://phantom.app/', '_blank');
-      alert('{% if current_lang == "EN" %}Please install Phantom wallet first{% else %}Сначала установите Phantom кошелёк{% endif %}');
+    // Определяем доступный кошелёк
+    let provider = null;
+    let walletName = '';
+
+    // Phantom
+    if (window.solana?.isPhantom) {
+      provider = window.solana;
+      walletName = 'Phantom';
+    }
+    // OKX Wallet
+    else if (window.okxwallet?.solana) {
+      provider = window.okxwallet.solana;
+      walletName = 'OKX Wallet';
+    }
+    // Backpack
+    else if (window.backpack?.solana) {
+      provider = window.backpack.solana;
+      walletName = 'Backpack';
+    }
+    // Solflare
+    else if (window.solflare?.isSolflare) {
+      provider = window.solflare;
+      walletName = 'Solflare';
+    }
+    // Jupiter (использует window.solana)
+    else if (window.solana) {
+      provider = window.solana;
+      walletName = 'Solana Wallet';
+    }
+    // Нет кошелька
+    else {
+      const choice = confirm(
+        'Solana кошелёк не найден!\n\n' +
+        'Нажми OK чтобы установить Phantom\n' +
+        'или Cancel чтобы выбрать другой кошелёк'
+      );
+      if (choice) {
+        window.open('https://phantom.app/', '_blank');
+      } else {
+        // Показываем список кошельков
+        const wallets = [
+          'Phantom — https://phantom.app',
+          'OKX Wallet — в приложении OKX',
+          'Solflare — https://solflare.com',
+          'Backpack — https://backpack.app',
+        ];
+        alert('Поддерживаемые кошельки:\n\n' + wallets.join('\n'));
+      }
       btn.disabled = false;
       return;
     }
-    const resp = await window.solana.connect();
-    const walletAddress = resp.publicKey.toString();
+
+    // Подключаем кошелёк
+    const statusEl = document.getElementById('wallet-status');
     if (statusEl) {
       statusEl.style.display = 'block';
-      statusEl.style.color = '#b8ff00';
-      statusEl.textContent = '⟳ Проверяем баланс $SYNX...';
+      statusEl.style.color = '#00e5ff';
+      statusEl.textContent = `⟳ Подключаем ${walletName}...`;
     }
+
+    const resp = await provider.connect();
+    const walletAddress = resp.publicKey.toString();
+
+    if (statusEl) {
+      statusEl.textContent = `⟳ Проверяем баланс $SYNX... (${walletAddress.slice(0,8)}...)`;
+    }
+
+    // Отправляем на сервер
     const r = await fetch('/api/wallet/connect', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({wallet_address: walletAddress})
     });
     const d = await r.json();
+
     if (d.error) {
-      if (statusEl) { statusEl.style.color = '#ff4466'; statusEl.textContent = '❌ ' + d.error; }
+      if (statusEl) {
+        statusEl.style.color = '#ff4466';
+        statusEl.textContent = '❌ ' + d.error;
+      }
       alert(d.error);
       btn.disabled = false;
       return;
     }
+
     if (d.premium_activated) {
       if (statusEl) {
         statusEl.style.color = '#b8ff00';
-        statusEl.textContent = '✅ Premium активирован! Баланс: $' + (d.usd_value || 0).toFixed(2);
+        statusEl.textContent = `✅ Premium активирован! Баланс: ${(d.usd_value||0).toFixed(2)} в $SYNX`;
       }
       setTimeout(() => location.reload(), 2000);
     } else {
-      const needed = (19.99 - (d.usd_value || 0)).toFixed(2);
+      const balance = (d.usd_value || 0).toFixed(2);
+      const needed  = Math.max(0, 19.99 - (d.usd_value || 0)).toFixed(2);
       if (statusEl) {
         statusEl.style.color = '#ff4466';
-        statusEl.textContent = `❌ Баланс: $${(d.usd_value||0).toFixed(2)} | Нужно ещё: $${needed}`;
+        statusEl.textContent = `❌ Баланс $SYNX: ${balance} | Нужно ещё: ${needed}`;
       }
       alert(
-        `💰 Текущий баланс $SYNX: $${(d.usd_value||0).toFixed(2)}\n` +
-        `📊 Нужно минимум: $19.99\n` +
-        `🔴 Не хватает: $${needed}\n\n` +
-        `Купи $SYNX на pump.fun и попробуй снова!`
+        `💰 Кошелёк: ${walletName}\n` +
+        `📊 Баланс $SYNX: ${balance}\n` +
+        `🎯 Нужно минимум: $19.99\n` +
+        `🔴 Не хватает: ${needed}\n\n` +
+        `Купи $SYNX на pump.fun:\n` +
+        `https://pump.fun/coin/f6oBCUbhoXR7xTDvCh2THGx95JmAZ4zYLC5TiGGpump`
       );
     }
   } catch(e) {
-    if (statusEl) { statusEl.style.color = '#ff4466'; statusEl.textContent = '❌ ' + e.message; }
-    alert('Ошибка подключения: ' + e.message);
+    const statusEl = document.getElementById('wallet-status');
+    if (statusEl) {
+      statusEl.style.color = '#ff4466';
+      statusEl.textContent = '❌ Ошибка: ' + e.message;
+    }
+    if (e.code === 4001) {
+      // Пользователь отклонил подключение
+    } else {
+      alert('Ошибка подключения: ' + e.message);
+    }
   }
   btn.disabled = false;
 }

@@ -946,6 +946,56 @@ def _start_db_backup_scheduler():
     log.info("[BACKUP] Планировщик бэкапа запущен (каждые 6ч → Telegram)")
 
 
+def _daily_wallet_check():
+    """Проверяет балансы всех привязанных кошельков каждые 24ч."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute(
+                "SELECT uid, wallet_address, is_premium FROM users "
+                "WHERE wallet_address IS NOT NULL AND wallet_address != ''"
+            ).fetchall()
+        updated = 0
+        for uid, wallet, is_premium in rows:
+            try:
+                result = check_synx_balance(wallet)
+                usd_value = result.get('usd_value', 0)
+                from datetime import datetime, timezone, timedelta
+                if usd_value >= 19.99:
+                    until = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+                    with sqlite3.connect(DB_PATH) as conn:
+                        conn.execute(
+                            "UPDATE users SET is_premium=1, premium_until=? WHERE uid=?",
+                            (until, uid)
+                        )
+                        conn.commit()
+                    updated += 1
+                elif usd_value < 5.0 and is_premium:
+                    log.warning(f"[WALLET] {wallet[:8]}... баланс низкий: ${usd_value:.2f}")
+            except Exception as e:
+                log.warning(f"[WALLET] check error {wallet[:8]}: {e}")
+        log.info(f"[WALLET] Ежедневная проверка: {len(rows)} кошельков, {updated} продлено")
+        if updated > 0:
+            try:
+                from s3_backup import upload_db as _s3
+                _s3(DB_PATH)
+            except Exception:
+                pass
+    except Exception as e:
+        log.error(f"[WALLET] daily check error: {e}")
+
+
+def _start_wallet_scheduler():
+    """Запускает ежедневную проверку балансов $SYNX."""
+    def _scheduler():
+        import time as _t
+        _t.sleep(3600)  # первая проверка через 1ч после старта
+        while True:
+            _daily_wallet_check()
+            _t.sleep(86400)  # 24 часа
+    threading.Thread(target=_scheduler, daemon=True, name="WalletScheduler").start()
+    log.info("[WALLET] Планировщик проверки кошельков запущен (каждые 24ч)")
+
+
 def _load_limits_from_db():
     """Загружает лимиты из БД (если были сохранены ранее)."""
     try:
@@ -1133,6 +1183,127 @@ def api_prices():
     except Exception as e:
         log.error(f"[api/prices] Error: {e}")
         return jsonify({}), 200  # возвращаем пустой dict вместо 500
+
+
+def check_synx_balance(wallet_address: str) -> dict:
+    """
+    Проверяет баланс $SYNX токена на кошельке через Solana RPC.
+    Использует Jupiter API для получения цены токена в USD.
+    """
+    import requests as _req
+    SYNX_MINT = "f6oBCUbhoXR7xTDvCh2THGx95JmAZ4zYLC5TiGGpump"
+    result = {
+        "wallet": wallet_address,
+        "synx_balance": 0,
+        "synx_price_usd": 0,
+        "usd_value": 0,
+        "has_premium_amount": False,
+    }
+    try:
+        rpc_url = "https://api.mainnet-beta.solana.com"
+        payload = {
+            "jsonrpc": "2.0", "id": 1,
+            "method": "getTokenAccountsByOwner",
+            "params": [
+                wallet_address,
+                {"mint": SYNX_MINT},
+                {"encoding": "jsonParsed"},
+            ],
+        }
+        r = _req.post(rpc_url, json=payload, timeout=10)
+        accounts = r.json().get("result", {}).get("value", [])
+        if accounts:
+            token_amount = (accounts[0].get("account", {})
+                            .get("data", {}).get("parsed", {})
+                            .get("info", {}).get("tokenAmount", {}))
+            result["synx_balance"] = float(token_amount.get("uiAmount", 0) or 0)
+        price_r = _req.get(
+            f"https://price.jup.ag/v6/price?ids={SYNX_MINT}", timeout=5
+        )
+        if price_r.ok:
+            price_data = price_r.json().get("data", {}).get(SYNX_MINT, {})
+            price = float(price_data.get("price", 0) or 0)
+            result["synx_price_usd"] = price
+            result["usd_value"] = round(result["synx_balance"] * price, 4)
+            result["has_premium_amount"] = result["usd_value"] >= 19.99
+    except Exception as e:
+        log.warning(f"[WALLET] check_synx_balance error: {e}")
+    return result
+
+
+@app.route('/api/wallet/connect', methods=['POST'])
+def api_wallet_connect():
+    """Привязывает Phantom кошелёк к аккаунту и проверяет баланс $SYNX."""
+    uid = session.get('user_uid')
+    if not uid:
+        return jsonify({"error": "NOT_LOGGED_IN"}), 401
+    data = request.get_json() or {}
+    wallet = data.get('wallet_address', '').strip()
+    if not wallet or len(wallet) < 32:
+        return jsonify({"error": "Неверный адрес кошелька"}), 400
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            existing = conn.execute(
+                "SELECT uid FROM users WHERE wallet_address=? AND uid!=?",
+                (wallet, uid)
+            ).fetchone()
+            if existing:
+                return jsonify({"error": "Этот кошелёк уже привязан к другому аккаунту"}), 400
+            conn.execute(
+                "UPDATE users SET wallet_address=? WHERE uid=?", (wallet, uid)
+            )
+            conn.commit()
+        result = check_synx_balance(wallet)
+        if result.get('usd_value', 0) >= 19.99:
+            from datetime import datetime, timezone, timedelta
+            until = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute(
+                    "UPDATE users SET is_premium=1, premium_until=? WHERE uid=?",
+                    (until, uid)
+                )
+                conn.commit()
+            result['premium_activated'] = True
+            result['premium_until'] = until
+            try:
+                from s3_backup import upload_db as _s3
+                _s3(DB_PATH)
+            except Exception:
+                pass
+        return jsonify(result)
+    except Exception as e:
+        log.error(f"[WALLET] connect error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/wallet/check', methods=['GET'])
+def api_wallet_check():
+    """Проверяет текущий баланс $SYNX для привязанного кошелька."""
+    uid = session.get('user_uid')
+    if not uid:
+        return jsonify({"error": "NOT_LOGGED_IN"}), 401
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT wallet_address FROM users WHERE uid=?", (uid,)
+            ).fetchone()
+        if not row or not row[0]:
+            return jsonify({"error": "Кошелёк не привязан", "has_wallet": False})
+        result = check_synx_balance(row[0])
+        result['has_wallet'] = True
+        if result.get('usd_value', 0) >= 19.99:
+            from datetime import datetime, timezone, timedelta
+            until = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute(
+                    "UPDATE users SET is_premium=1, premium_until=? WHERE uid=?",
+                    (until, uid)
+                )
+                conn.commit()
+            result['premium_activated'] = True
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/entry', methods=['POST'])
@@ -3080,6 +3251,7 @@ if _portfolio_ready:
 _start_full_cleanup_scheduler(DB_PATH)
 _start_db_backup_scheduler()   # автобэкап в Telegram каждые 6ч
 start_s3_sync_scheduler(DB_PATH, interval_sec=1800)  # синхронизация с S3 каждые 30 мин
+_start_wallet_scheduler()       # проверка балансов $SYNX каждые 24ч
 threading.Thread(target=_warm_cache, daemon=True).start()
 
 

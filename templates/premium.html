@@ -248,6 +248,21 @@ Paddle.Setup({
 
   <!-- Выбор тарифа (валюта) -->
   <div class="plans" id="plans-block">
+    <!-- $SYNX Token Hold -->
+    <div class="plan-card" onclick="selectPlan('synx', this)"
+         style="border-color:rgba(184,255,0,0.3);background:rgba(184,255,0,0.03);grid-column:1/-1;">
+      <div class="plan-currency-flag">🪙</div>
+      <div class="plan-currency-name">{% if current_lang == "EN" %}HOLD $SYNX TOKEN{% else %}ДЕРЖИ $SYNX ТОКЕН{% endif %}</div>
+      <div class="plan-price">
+        <div class="plan-price-symbol">$</div>
+        <div class="plan-price-amount">19.99</div>
+      </div>
+      <div class="plan-price-period">{% if current_lang == "EN" %}worth of $SYNX{% else %}в токенах $SYNX{% endif %}</div>
+      <div class="plan-desc">{% if current_lang == "EN" %}Connect Phantom wallet · Auto Premium{% else %}Подключи Phantom · Авто Premium{% endif %}</div>
+      <div style="margin-top:8px;font-size:9px;color:rgba(184,255,0,0.6);font-family:'Share Tech Mono',monospace;">
+        {% if current_lang == "EN" %}Hold ≥ $19.99 of $SYNX = Premium forever{% else %}Держи ≥ $19.99 в $SYNX = Premium навсегда{% endif %}
+      </div>
+    </div>
     <!-- Карта USD — Paddle (всегда показывается) -->
     <div class="plan-card selected" onclick="selectPlan('card_usd', this)">
       <div class="plan-currency-flag">💳</div>
@@ -374,6 +389,10 @@ Paddle.Setup({
       Оплата через Stripe · Безопасно · Отмена в любой момент<br>
       Нажимая кнопку, вы соглашаетесь с <a href="#">условиями использования</a>
     </div>
+    <div id="wallet-status" style="display:none;margin-top:12px;padding:10px;
+         background:rgba(184,255,0,0.06);border:1px solid rgba(184,255,0,0.2);
+         font-family:'Share Tech Mono',monospace;font-size:11px;color:#b8ff00;
+         text-align:center;"></div>
   </div>
 
   <!-- Управление подпиской (для Premium) -->
@@ -415,8 +434,8 @@ function selectPlan(currency, el) {
   el.classList.add('selected');
   const isEN = document.documentElement.lang === 'en';
   const labels = isEN
-    ? {usd: '$ GET PREMIUM — $19.99/MO', eur: '€ GET PREMIUM — €19.99/MO', crypto: '₿ PAY WITH CRYPTO — $19.99/MO'}
-    : {usd: '$ ОФОРМИТЬ PREMIUM — $19.99/МЕС', eur: '€ ОФОРМИТЬ PREMIUM — €19.99/МЕС', crypto: '₿ ОПЛАТИТЬ КРИПТОЙ — $19.99/МЕС'};
+    ? {card_usd: '$ GET PREMIUM — $19.99/MO', card_eur: '€ GET PREMIUM — €19.99/MO', crypto: '₿ PAY WITH CRYPTO — $19.99/MO', synx: '🪙 CONNECT PHANTOM — HOLD $SYNX'}
+    : {card_usd: '$ ОФОРМИТЬ PREMIUM — $19.99/МЕС', card_eur: '€ ОФОРМИТЬ PREMIUM — €19.99/МЕС', crypto: '₿ ОПЛАТИТЬ КРИПТОЙ — $19.99/МЕС', synx: '🪙 ПОДКЛЮЧИТЬ PHANTOM — ДЕРЖИ $SYNX'};
   document.getElementById('cta-btn').querySelector('.btn-text').textContent = labels[currency] || 'ОФОРМИТЬ PREMIUM';
 }
 
@@ -442,6 +461,10 @@ async function startPaddlePayment() {
 }
 
 async function subscribe() {
+  if (_selectedCurrency === 'synx') {
+    await connectPhantom();
+    return;
+  }
   const btn = document.getElementById('cta-btn');
   btn.classList.add('loading'); btn.disabled = true;
   try {
@@ -584,6 +607,62 @@ async function checkStatus() {
       }
     }
   } catch(e) { console.error(e); }
+}
+
+async function connectPhantom() {
+  const btn = document.getElementById('cta-btn');
+  btn.disabled = true;
+  const statusEl = document.getElementById('wallet-status');
+  try {
+    if (!window.solana || !window.solana.isPhantom) {
+      window.open('https://phantom.app/', '_blank');
+      alert('{% if current_lang == "EN" %}Please install Phantom wallet first{% else %}Сначала установите Phantom кошелёк{% endif %}');
+      btn.disabled = false;
+      return;
+    }
+    const resp = await window.solana.connect();
+    const walletAddress = resp.publicKey.toString();
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#b8ff00';
+      statusEl.textContent = '⟳ Проверяем баланс $SYNX...';
+    }
+    const r = await fetch('/api/wallet/connect', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({wallet_address: walletAddress})
+    });
+    const d = await r.json();
+    if (d.error) {
+      if (statusEl) { statusEl.style.color = '#ff4466'; statusEl.textContent = '❌ ' + d.error; }
+      alert(d.error);
+      btn.disabled = false;
+      return;
+    }
+    if (d.premium_activated) {
+      if (statusEl) {
+        statusEl.style.color = '#b8ff00';
+        statusEl.textContent = '✅ Premium активирован! Баланс: $' + (d.usd_value || 0).toFixed(2);
+      }
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      const needed = (19.99 - (d.usd_value || 0)).toFixed(2);
+      if (statusEl) {
+        statusEl.style.color = '#ff4466';
+        statusEl.textContent = `❌ Баланс: $${(d.usd_value||0).toFixed(2)} | Нужно ещё: $${needed}`;
+      }
+      alert(
+        `💰 Текущий баланс $SYNX: $${(d.usd_value||0).toFixed(2)}\n` +
+        `📊 Нужно минимум: $19.99\n` +
+        `🔴 Не хватает: $${needed}\n\n` +
+        `Купи $SYNX на pump.fun и попробуй снова!`
+      );
+    }
+  } catch(e) {
+    if (statusEl) { statusEl.style.color = '#ff4466'; statusEl.textContent = '❌ ' + e.message; }
+    alert('Ошибка подключения: ' + e.message);
+  }
+  btn.disabled = false;
 }
 
 checkStatus();

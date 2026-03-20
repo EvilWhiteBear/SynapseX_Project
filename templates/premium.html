@@ -612,6 +612,29 @@ async function checkStatus() {
 async function connectSolanaWallet() {
   const btn = document.getElementById('cta-btn');
   btn.disabled = true;
+  const statusEl = document.getElementById('wallet-status');
+
+  // Ждём 500мс чтобы кошельки успели инициализироваться
+  await new Promise(r => setTimeout(r, 500));
+
+  // Проверяем доступные кошельки
+  const available = [];
+  if (window.solana?.isPhantom)     available.push('Phantom');
+  if (window.okxwallet?.solana)     available.push('OKX Wallet');
+  if (window.solflare?.isSolflare)  available.push('Solflare');
+  if (window.backpack?.solana)      available.push('Backpack');
+  if (window.solana && !window.solana.isPhantom) available.push('Solana Wallet');
+
+  if (available.length === 0) {
+    btn.disabled = false;
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#ff4466';
+      statusEl.textContent = '❌ Solana кошелёк не найден. Установи Phantom или OKX Wallet';
+    }
+    setTimeout(() => window.open('https://phantom.app/', '_blank'), 1000);
+    return;
+  }
 
   try {
     // Определяем доступный кошелёк
@@ -642,28 +665,6 @@ async function connectSolanaWallet() {
     else if (window.solana) {
       provider = window.solana;
       walletName = 'Solana Wallet';
-    }
-    // Нет кошелька
-    else {
-      const choice = confirm(
-        'Solana кошелёк не найден!\n\n' +
-        'Нажми OK чтобы установить Phantom\n' +
-        'или Cancel чтобы выбрать другой кошелёк'
-      );
-      if (choice) {
-        window.open('https://phantom.app/', '_blank');
-      } else {
-        // Показываем список кошельков
-        const wallets = [
-          'Phantom — https://phantom.app',
-          'OKX Wallet — в приложении OKX',
-          'Solflare — https://solflare.com',
-          'Backpack — https://backpack.app',
-        ];
-        alert('Поддерживаемые кошельки:\n\n' + wallets.join('\n'));
-      }
-      btn.disabled = false;
-      return;
     }
 
     // Подключаем кошелёк

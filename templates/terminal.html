@@ -2158,6 +2158,95 @@ function copyProfileRef() {
     setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
 }
 
+async function connectWalletFromProfile() {
+  const btn = document.getElementById('wallet-connect-btn');
+  const statusEl = document.getElementById('wallet-profile-status');
+  btn.disabled = true;
+  btn.textContent = '⟳ ПОДКЛЮЧЕНИЕ...';
+  if (statusEl) statusEl.style.display = 'block';
+
+  await new Promise(r => setTimeout(r, 500));
+
+  let provider = null;
+  let walletName = '';
+  if (window.solana?.isPhantom)        { provider = window.solana;          walletName = 'Phantom'; }
+  else if (window.okxwallet?.solana)   { provider = window.okxwallet.solana; walletName = 'OKX'; }
+  else if (window.solflare?.isSolflare){ provider = window.solflare;         walletName = 'Solflare'; }
+  else if (window.backpack?.solana)    { provider = window.backpack.solana;  walletName = 'Backpack'; }
+  else if (window.solana)              { provider = window.solana;           walletName = 'Solana'; }
+
+  if (!provider) {
+    btn.disabled = false;
+    btn.textContent = '🔗 ПОДКЛЮЧИТЬ КОШЕЛЁК';
+    if (statusEl) {
+      statusEl.style.color = '#ff4466';
+      statusEl.textContent = '❌ Кошелёк не найден. Установи Phantom';
+    }
+    return;
+  }
+
+  try {
+    const resp = await provider.connect();
+    const walletAddress = resp.publicKey.toString();
+    if (statusEl) {
+      statusEl.style.color = '#00e5ff';
+      statusEl.textContent = '⟳ Проверяем $SYNX на ' + walletName + '...';
+    }
+
+    const r = await fetch('/api/wallet/connect', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({wallet_address: walletAddress})
+    });
+    const d = await r.json();
+
+    if (d.error) {
+      if (statusEl) { statusEl.style.color = '#ff4466'; statusEl.textContent = '❌ ' + d.error; }
+      btn.disabled = false;
+      btn.textContent = '🔗 ПОДКЛЮЧИТЬ КОШЕЛЁК';
+      return;
+    }
+
+    // Показываем адрес и баланс
+    const addrEl = document.getElementById('wallet-addr-short');
+    const balEl  = document.getElementById('wallet-synx-balance');
+    const addrBlock = document.getElementById('wallet-address-display');
+    if (addrEl) addrEl.textContent = walletAddress.slice(0,8) + '...' + walletAddress.slice(-4);
+    if (balEl)  balEl.textContent  = '$' + (d.usd_value||0).toFixed(2);
+    if (addrBlock) addrBlock.style.display = 'block';
+
+    btn.textContent = '✅ ' + walletName + ' подключён';
+
+    if (d.premium_activated) {
+      if (statusEl) {
+        statusEl.style.color = '#b8ff00';
+        statusEl.textContent = '🎉 Premium активирован! Баланс: $' + (d.usd_value||0).toFixed(2);
+      }
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      const needed = Math.max(0, 19.99 - (d.usd_value||0)).toFixed(2);
+      if (statusEl) {
+        statusEl.style.color = '#607080';
+        statusEl.textContent = '$SYNX: $' + (d.usd_value||0).toFixed(2) + ' | Для Premium нужно ещё $' + needed;
+      }
+      if ((d.usd_value||0) < 19.99) {
+        setTimeout(() => {
+          if (confirm('Баланс $SYNX: $' + (d.usd_value||0).toFixed(2) + '\nНужно: $19.99\n\nКупить $SYNX на pump.fun?')) {
+            window.open('https://pump.fun/coin/f6oBCUbhoXR7xTDvCh2THGx95JmAZ4zYLC5TiGGpump', '_blank');
+          }
+        }, 500);
+      }
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '🔗 ПОДКЛЮЧИТЬ КОШЕЛЁК';
+    if (statusEl) {
+      statusEl.style.color = '#ff4466';
+      statusEl.textContent = e.code === 4001 ? '⚠️ Отклонено пользователем' : '❌ ' + e.message;
+    }
+  }
+}
+
 // ── LIVE SIGNAL TICKER ────────────────────────────────────────────────────
 async function loadSignalTicker() {
   try {
@@ -2268,6 +2357,26 @@ function obSkip() {
         <div style="margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(240,244,255,0.35);">
           За каждого приглашённого пользователя ты получаешь бонусный сигнал в день
         </div>
+      </div>
+
+      <!-- ◈ SOLANA КОШЕЛЁК -->
+      <div style="margin-bottom:14px;" id="wallet-block">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(240,244,255,0.4);letter-spacing:2px;margin-bottom:6px;">◈ SOLANA КОШЕЛЁК ($SYNX)</div>
+        <div id="wallet-address-display" style="display:none;margin-bottom:6px;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#b8ff00;padding:6px 10px;background:rgba(184,255,0,0.06);border:1px solid rgba(184,255,0,0.2);">
+            <span id="wallet-addr-short">—</span>
+            <span id="wallet-synx-balance" style="float:right;color:#00e5ff;">$0.00</span>
+          </div>
+        </div>
+        <button id="wallet-connect-btn" onclick="connectWalletFromProfile()"
+          style="width:100%;height:32px;background:rgba(184,255,0,0.08);
+                 border:1px solid rgba(184,255,0,0.3);color:#b8ff00;
+                 font-family:'Share Tech Mono',monospace;font-size:10px;
+                 letter-spacing:2px;cursor:pointer;">
+          🔗 ПОДКЛЮЧИТЬ КОШЕЛЁК
+        </button>
+        <div id="wallet-profile-status" style="display:none;margin-top:6px;
+             font-family:'Share Tech Mono',monospace;font-size:9px;color:#607080;"></div>
       </div>
 
       <!-- Статус Premium -->

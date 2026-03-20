@@ -1111,7 +1111,7 @@ def api_prices():
     """Возвращает цены + 24h change как обычный JSON (не SSE стрим)."""
     try:
         symbols  = request.args.get('symbols', 'BTC-USDT,ETH-USDT,SOL-USDT,BNB-USDT,XRP-USDT')
-        sym_list = [s.strip() for s in symbols.split(',') if s.strip()][:10]
+        sym_list = [s.strip() for s in symbols.split(',') if s.strip()][:65]
         result   = {}
         for sym in sym_list:
             try:

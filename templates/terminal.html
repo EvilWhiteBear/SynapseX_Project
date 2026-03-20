@@ -1078,9 +1078,12 @@ function renderWatchlist(livePrices) {
 // Live-обновление цен в watchlist
 async function updateWatchlistPrices() {
     try {
-        const syms = topAssets.slice(0, 20).map(a => a.symbol).join(',');
+        const syms = topAssets.slice(0, 65).map(a => a.symbol).join(',');
         const r = await fetch('/api/prices?symbols=' + syms);
-        if (!r.ok) return;
+        if (!r.ok) {
+            console.warn('[watchlist] /api/prices failed:', r.status, r.statusText);
+            return;
+        }
         const data = await r.json();
         renderWatchlist(data);
     } catch(e) {}
@@ -2035,9 +2038,8 @@ function drawSparkline(canvas, data, color) {
    СТАРТ ВСЕХ СИСТЕМ
    ───────────────────────────────────── */
 window.onload = () => {
-    renderWatchlist(null);
     if (topAssets.length > 0) initChart(topAssets[0].symbol);
-    // Запускаем live-обновление цен в watchlist каждые 15 сек
+    // Запускаем live-обновление цен в watchlist сразу (без хардкода +0.00%)
     updateWatchlistPrices();
     setInterval(updateWatchlistPrices, 15000);
     initMatrix();

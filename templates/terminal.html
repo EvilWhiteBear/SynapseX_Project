@@ -2162,32 +2162,46 @@ function copyProfileRef() {
 async function connectWalletFromProfile() {
   const btn = document.getElementById('wallet-connect-btn');
   const statusEl = document.getElementById('wallet-profile-status');
-  btn.disabled = true;
-  btn.textContent = '⟳ ПОДКЛЮЧЕНИЕ...';
-  if (statusEl) statusEl.style.display = 'block';
 
-  await new Promise(r => setTimeout(r, 500));
+  // Показываем выбор кошелька
+  const available = [];
+  await new Promise(r => setTimeout(r, 300));
+  if (window.solana?.isPhantom)      available.push({name: 'Phantom',    provider: window.solana});
+  if (window.okxwallet?.solana)      available.push({name: 'OKX Wallet', provider: window.okxwallet.solana});
+  if (window.solflare?.isSolflare)   available.push({name: 'Solflare',   provider: window.solflare});
+  if (window.backpack?.solana)       available.push({name: 'Backpack',   provider: window.backpack.solana});
 
-  let provider = null;
-  let walletName = '';
-  if (window.solana?.isPhantom)        { provider = window.solana;          walletName = 'Phantom'; }
-  else if (window.okxwallet?.solana)   { provider = window.okxwallet.solana; walletName = 'OKX'; }
-  else if (window.solflare?.isSolflare){ provider = window.solflare;         walletName = 'Solflare'; }
-  else if (window.backpack?.solana)    { provider = window.backpack.solana;  walletName = 'Backpack'; }
-  else if (window.solana)              { provider = window.solana;           walletName = 'Solana'; }
-
-  if (!provider) {
-    btn.disabled = false;
-    btn.textContent = '🔗 ПОДКЛЮЧИТЬ КОШЕЛЁК';
+  if (available.length === 0) {
     if (statusEl) {
+      statusEl.style.display = 'block';
       statusEl.style.color = '#ff4466';
       statusEl.textContent = '❌ Кошелёк не найден. Установи Phantom';
     }
+    window.open('https://phantom.app/', '_blank');
     return;
   }
 
+  // Если несколько кошельков — спрашиваем какой использовать
+  let chosen = available[0];
+  if (available.length > 1) {
+    const names = available.map((w, i) => `${i+1}. ${w.name}`).join('\n');
+    const idx = prompt(`Выбери кошелёк:\n${names}\n\nВведи номер (1-${available.length}):`);
+    const n = parseInt(idx) - 1;
+    if (n >= 0 && n < available.length) {
+      chosen = available[n];
+    }
+  }
+
+  const walletName = chosen.name;
+  btn.disabled = true;
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#00e5ff';
+    statusEl.textContent = `⟳ Подключаем ${chosen.name}...`;
+  }
+
   try {
-    const resp = await provider.connect();
+    const resp = await chosen.provider.connect();
     const walletAddress = resp.publicKey.toString();
     if (statusEl) {
       statusEl.style.color = '#00e5ff';

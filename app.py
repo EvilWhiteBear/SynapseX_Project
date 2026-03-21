@@ -1260,6 +1260,7 @@ def api_wallet_connect():
                 (wallet, uid)
             ).fetchone()
             if existing:
+                # Проверяем не тот ли это же пользователь с другого устройства
                 return jsonify({"error": "Этот кошелёк уже привязан к другому аккаунту"}), 400
             conn.execute(
                 "UPDATE users SET wallet_address=? WHERE uid=?", (wallet, uid)

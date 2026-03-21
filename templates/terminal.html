@@ -399,6 +399,7 @@ body::after {
 .ov-journal.show  { transform:translate(-50%,-50%) translateY(0) scale(1); }
 .ov-portfolio { width:min(780px,92vw); height:min(560px,85vh); top:50%; left:50%; transform:translate(-50%,-50%) translateY(20px) scale(0.97); }
 .ov-portfolio.show { transform:translate(-50%,-50%) translateY(0) scale(1); }
+.ov-profile { width:400px; max-width:95vw; top:50%; left:50%; transform:translate(-50%,-50%) translateY(20px) scale(0.97); }
 .ov-profile.show  { transform:translate(-50%,-50%) translateY(0) scale(1); }
 
 .ov-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 14px; border-bottom:1px solid var(--b1); flex-shrink:0; }
@@ -2224,6 +2225,7 @@ async function connectWalletFromProfile() {
       }
       setTimeout(() => location.reload(), 2000);
     } else {
+      btn.disabled = false;
       const needed = Math.max(0, 19.99 - (d.usd_value||0)).toFixed(2);
       if (statusEl) {
         statusEl.style.color = '#607080';
@@ -2316,7 +2318,7 @@ function obSkip() {
 </script>
 
 <!-- ═══════════ PROFILE OVERLAY ═══════════ -->
-<div id="ov-profile" class="ov-panel" style="width:400px;max-width:95vw;top:50%;left:50%;transform:translate(-50%,-50%) translateY(20px) scale(0.97);">
+<div id="ov-profile" class="ov-panel ov-profile">
   <div class="ov-head">
     <div class="ov-title-group">
       <div class="ov-icon" style="background:rgba(123,0,255,0.1);border:1px solid rgba(123,0,255,0.3);">◈</div>

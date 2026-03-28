@@ -2181,15 +2181,27 @@ async function connectWalletFromProfile() {
     return;
   }
 
-  // Если несколько кошельков — спрашиваем какой использовать
+  // Если несколько кошельков — показываем кнопки выбора
   let chosen = available[0];
   if (available.length > 1) {
-    const names = available.map((w, i) => `${i+1}. ${w.name}`).join('\n');
-    const idx = prompt(`Выбери кошелёк:\n${names}\n\nВведи номер (1-${available.length}):`);
-    const n = parseInt(idx) - 1;
-    if (n >= 0 && n < available.length) {
-      chosen = available[n];
-    }
+    chosen = await new Promise(resolve => {
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#b8ff00';
+        statusEl.innerHTML = '<span style="display:block;margin-bottom:6px;font-size:10px;color:#888;">ВЫБЕРИ КОШЕЛЁК</span>' +
+          available.map((w, i) =>
+            `<button onclick="this.closest('#wallet-profile-status, [id]').dispatchEvent(new CustomEvent('walletChosen',{detail:${i},bubbles:true}))"
+              style="margin:2px 4px;padding:4px 10px;background:rgba(184,255,0,0.1);border:1px solid rgba(184,255,0,0.3);
+              color:#b8ff00;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;border-radius:2px;"
+            >${w.name}</button>`
+          ).join('');
+      }
+      const handler = e => {
+        statusEl.removeEventListener('walletChosen', handler);
+        resolve(available[e.detail]);
+      };
+      statusEl.addEventListener('walletChosen', handler);
+    });
   }
 
   const walletName = chosen.name;
@@ -2201,8 +2213,14 @@ async function connectWalletFromProfile() {
   }
 
   try {
-    const resp = await chosen.provider.connect();
-    const walletAddress = resp.publicKey.toString();
+    // Если кошелёк уже подключён — берём publicKey напрямую
+    let walletAddress;
+    if (chosen.provider.publicKey) {
+      walletAddress = chosen.provider.publicKey.toString();
+    } else {
+      const resp = await chosen.provider.connect();
+      walletAddress = resp.publicKey.toString();
+    }
     if (statusEl) {
       statusEl.style.color = '#00e5ff';
       statusEl.textContent = '⟳ Проверяем $SYNX на ' + walletName + '...';

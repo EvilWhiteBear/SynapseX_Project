@@ -1229,15 +1229,35 @@ def check_synx_balance(wallet_address: str) -> dict:
                             .get("data", {}).get("parsed", {})
                             .get("info", {}).get("tokenAmount", {}))
             result["synx_balance"] = float(token_amount.get("uiAmount", 0) or 0)
-        price_r = _req.get(
-            f"https://price.jup.ag/v6/price?ids={SYNX_MINT}", timeout=5
-        )
-        if price_r.ok:
-            price_data = price_r.json().get("data", {}).get(SYNX_MINT, {})
-            price = float(price_data.get("price", 0) or 0)
-            result["synx_price_usd"] = price
-            result["usd_value"] = round(result["synx_balance"] * price, 4)
-            result["has_premium_amount"] = result["usd_value"] >= 19.99
+        price = 0.0
+        # 1) DexScreener — основной источник для pump.fun токенов
+        try:
+            dex_r = _req.get(
+                f"https://api.dexscreener.com/latest/dex/tokens/{SYNX_MINT}",
+                timeout=5
+            )
+            if dex_r.ok:
+                pairs = dex_r.json().get("pairs") or []
+                # Берём пару с наибольшей ликвидностью
+                pairs_sorted = sorted(pairs, key=lambda p: float(p.get("liquidity", {}).get("usd", 0) or 0), reverse=True)
+                if pairs_sorted:
+                    price = float(pairs_sorted[0].get("priceUsd", 0) or 0)
+        except Exception:
+            pass
+        # 2) Jupiter v6 — fallback
+        if price == 0.0:
+            try:
+                jup_r = _req.get(
+                    f"https://price.jup.ag/v6/price?ids={SYNX_MINT}", timeout=5
+                )
+                if jup_r.ok:
+                    price_data = jup_r.json().get("data", {}).get(SYNX_MINT, {})
+                    price = float(price_data.get("price", 0) or 0)
+            except Exception:
+                pass
+        result["synx_price_usd"] = price
+        result["usd_value"] = round(result["synx_balance"] * price, 4)
+        result["has_premium_amount"] = result["usd_value"] >= 19.99
     except Exception as e:
         log.warning(f"[WALLET] check_synx_balance error: {e}")
     return result

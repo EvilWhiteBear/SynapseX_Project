@@ -79,9 +79,15 @@ def create_crypto_payment(uid: str, email: str, currency: str = "usdttrc20",
 
 
 def verify_ipn_signature(payload: bytes, received_hmac: str) -> bool:
-    """Проверяет подпись IPN от NOWPayments."""
+    """Проверяет подпись IPN от NOWPayments.
+    Возвращает False если секрет не задан или подпись неверна.
+    """
     if not NOWPAYMENTS_IPN_SECRET:
-        return True  # если секрет не задан — пропускаем проверку (не рекомендуется в проде)
+        log.error("[CRYPTO] NOWPAYMENTS_IPN_SECRET не задан — вебхук отклонён")
+        return False
+    if not received_hmac:
+        log.warning("[CRYPTO] Отсутствует заголовок x-nowpayments-sig")
+        return False
     try:
         computed = hmac.new(
             NOWPAYMENTS_IPN_SECRET.encode(),
@@ -105,6 +111,11 @@ def handle_crypto_webhook(payload: dict, db_path: str) -> dict:
     log.info(f"[CRYPTO] IPN: payment_id={payment_id} status={status}")
 
     if status in ("finished", "confirmed"):
+        # Идемпотентность: не активируем повторно уже обработанный платёж
+        if _is_payment_already_processed(db_path, payment_id):
+            log.info(f"[CRYPTO] Платёж {payment_id} уже обработан — пропускаем")
+            return {"status": "OK", "already_processed": True}
+
         # Извлекаем uid из order_id
         uid = ""
         if order_id.startswith("synapsex_"):
@@ -165,6 +176,18 @@ def _save_crypto_payment(db_path, uid, payment_id, currency, payment_url):
             """, (uid, payment_id, currency, CRYPTO_PRICE_USD, payment_url, ts, ts))
     except Exception as e:
         log.warning(f"[CRYPTO] save_payment: {e}")
+
+
+def _is_payment_already_processed(db_path: str, payment_id: str) -> bool:
+    """Проверяет, был ли платёж уже обработан (статус finished)."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            row = conn.execute(
+                "SELECT status FROM crypto_payments WHERE payment_id=?", (payment_id,)
+            ).fetchone()
+            return row is not None and row[0] == "finished"
+    except Exception:
+        return False
 
 
 def _get_uid_by_payment(db_path, payment_id) -> str:

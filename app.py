@@ -67,7 +67,7 @@ except ImportError:
     def init_paddle_db(*a, **k): pass
     def create_paddle_checkout(*a, **k): return {"error": "Paddle не установлен"}
     def handle_paddle_webhook(*a, **k): return {}
-    def verify_paddle_sig(*a, **k): return True
+    def verify_paddle_sig(*a, **k): return False
     def get_paddle_status(*a, **k): return {}
     _paddle_configured = False
 # ── S3 Backup (Timeweb S3 для хранения БД) ───────────────────────────────────
@@ -118,7 +118,7 @@ except ImportError:
     def init_crypto_db(db_path): pass
     def create_crypto_payment(*a, **k):  return {"error": "nowpayments.py не найден"}
     def handle_crypto_webhook(*a, **k):  return {"status": "not_configured"}
-    def verify_ipn_signature(*a, **k):   return True
+    def verify_ipn_signature(*a, **k):   return False
     def get_payment_status(*a, **k):     return {"error": "not_configured"}
     def _crypto_configured():            return False
 
@@ -4103,11 +4103,11 @@ def api_crypto_webhook():
     URL для настройки в NOWPayments Dashboard: https://synapsex-ai.com/api/crypto/webhook
     """
     payload_bytes = request.data
-    payload       = request.json or {}
     ipn_sig       = request.headers.get('x-nowpayments-sig', '')
-    if ipn_sig and not verify_ipn_signature(payload_bytes, ipn_sig):
-        log.warning("[CRYPTO] Неверная IPN подпись")
+    if not verify_ipn_signature(payload_bytes, ipn_sig):
+        log.warning("[CRYPTO] Неверная или отсутствующая IPN подпись")
         return jsonify({"error": "invalid_signature"}), 400
+    payload = request.json or {}
     result = handle_crypto_webhook(payload, DB_PATH)
 
     if result.get("premium"):
@@ -4271,9 +4271,13 @@ def stripe_webhook():
     """
     payload    = request.data
     sig_header = request.headers.get('Stripe-Signature', '')
+    if not sig_header:
+        log.warning("[STRIPE] Вебхук без Stripe-Signature заголовка")
+        return jsonify({"error": "missing_signature"}), 400
     result = handle_webhook(payload, sig_header, DB_PATH)
-    if 'error' in result and result['error'] == 'invalid_signature':
-        return jsonify(result), 400
+    if 'error' in result:
+        code = 400 if result['error'] == 'invalid_signature' else 500
+        return jsonify(result), code
     return jsonify(result)
 
 

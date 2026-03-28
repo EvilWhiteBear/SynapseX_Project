@@ -13,7 +13,11 @@
       "Bash(powershell -File - << 'PS'\n$src = 'C:\\\\SynapseX_Project\\\\app_tmp.py'\n$dst = 'C:\\\\SynapseX_Project\\\\app.py'\n[System.IO.File]::Copy\\($src, $dst, $true\\)\nWrite-Output \"done\"\nPS)",
       "Bash(openfiles:*)",
       "Bash(powershell -Command \"handle app.py\" 2>&1 | head -20)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(grep -rn public/stats templates/ --include=*.html)",
+      "Bash(wc -l templates/*.html static/css/*.css static/js/*.js)",
+      "Bash(sqlite3 signals.db \".schema\")",
+      "Bash(xargs wc:*)"
     ]
   }
 }

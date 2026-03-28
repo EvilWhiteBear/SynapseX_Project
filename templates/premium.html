@@ -675,8 +675,15 @@ async function connectSolanaWallet() {
       statusEl.textContent = `⟳ Подключаем ${walletName}...`;
     }
 
-    const resp = await provider.connect();
-    const walletAddress = resp.publicKey.toString();
+    // Если кошелёк уже подключён — берём publicKey напрямую,
+    // не вызываем connect() повторно (OKX бросает "Unexpected error" при реконнекте)
+    let walletAddress;
+    if (provider.publicKey) {
+      walletAddress = provider.publicKey.toString();
+    } else {
+      const resp = await provider.connect();
+      walletAddress = resp.publicKey.toString();
+    }
 
     if (statusEl) {
       statusEl.textContent = `⟳ Проверяем баланс $SYNX... (${walletAddress.slice(0,8)}...)`;
@@ -724,14 +731,23 @@ async function connectSolanaWallet() {
     }
   } catch(e) {
     const statusEl = document.getElementById('wallet-status');
-    if (statusEl) {
-      statusEl.style.color = '#ff4466';
-      statusEl.textContent = '❌ Ошибка: ' + e.message;
-    }
-    if (e.code === 4001) {
-      // Пользователь отклонил подключение
+    if (e.code === 4001 || e.message?.includes('rejected') || e.message?.includes('cancelled')) {
+      // Пользователь отклонил подключение — молча игнорируем
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#888';
+        statusEl.textContent = '⚠️ Подключение отменено';
+      }
     } else {
-      alert('Ошибка подключения: ' + e.message);
+      const msg = (e.message === 'Unexpected error')
+        ? 'Не удалось подключить кошелёк. Обнови страницу и попробуй снова.'
+        : e.message;
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#ff4466';
+        statusEl.textContent = '❌ ' + msg;
+      }
+      alert('Ошибка подключения: ' + msg);
     }
   }
   btn.disabled = false;

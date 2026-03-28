@@ -114,9 +114,15 @@ def create_checkout_url(uid: str, email: str,
 
 def verify_webhook_signature(payload_bytes: bytes,
                               signature_header: str) -> bool:
-    """Проверяет подпись входящего Paddle webhook."""
+    """Проверяет подпись входящего Paddle webhook.
+    Возвращает False если секрет не задан или подпись неверна.
+    """
     if not PADDLE_WEBHOOK_SECRET:
-        return True  # если секрет не задан — пропускаем проверку (dev mode)
+        log.error("[PADDLE] PADDLE_WEBHOOK_SECRET не задан — вебхук отклонён")
+        return False
+    if not signature_header:
+        log.warning("[PADDLE] Отсутствует заголовок Paddle-Signature")
+        return False
     try:
         # Paddle webhook signature format:
         # ts=timestamp;h1=signature

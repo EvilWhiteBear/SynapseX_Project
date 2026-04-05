@@ -7,3 +7,4 @@ python-dotenv==1.0.1
 stripe==11.4.1
 groq==0.13.1
 boto3==1.38.0
+sentry-sdk[flask]==2.19.2

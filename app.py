@@ -182,6 +182,24 @@ except ImportError:
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.getenv("FLASK_SECRET", "synapse_monolith_supreme_2024")
 
+# ── Sentry — мониторинг ошибок ────────────────────────────────────────────────
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.flask import FlaskIntegration
+    _SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+    if _SENTRY_DSN:
+        sentry_sdk.init(
+            dsn=_SENTRY_DSN,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=0.1,
+            send_default_pii=False,
+        )
+        log.info("[SENTRY] Мониторинг ошибок активирован ✓")
+    else:
+        log.warning("[SENTRY] SENTRY_DSN не задан в .env — мониторинг отключён")
+except ImportError:
+    log.warning("[SENTRY] sentry-sdk не установлен. pip install sentry-sdk[flask]")
+
 collector = MarketDataCollector()
 analyzer  = QuantumAnalyzer()
 
@@ -1200,7 +1218,8 @@ def api_prices():
 def check_synx_balance(wallet_address: str) -> dict:
     """
     Проверяет баланс $SYNX токена на кошельке через Solana RPC.
-    Использует Jupiter API для получения цены токена в USD.
+    Fallback chain: mainnet-beta → Ankr → ExtrNode → RPCPool
+    Цена: DexScreener → Birdeye → Jupiter v6
     """
     import requests as _req
     SYNX_MINT = "f6oBCUbhoXR7xTDvCh2THGx95JmAZ4zYLC5TiGGpump"
@@ -1211,55 +1230,108 @@ def check_synx_balance(wallet_address: str) -> dict:
         "usd_value": 0,
         "has_premium_amount": False,
     }
-    try:
-        rpc_url = "https://api.mainnet-beta.solana.com"
-        payload = {
-            "jsonrpc": "2.0", "id": 1,
-            "method": "getTokenAccountsByOwner",
-            "params": [
-                wallet_address,
-                {"mint": SYNX_MINT},
-                {"encoding": "jsonParsed"},
-            ],
-        }
-        r = _req.post(rpc_url, json=payload, timeout=10)
-        accounts = r.json().get("result", {}).get("value", [])
-        if accounts:
-            token_amount = (accounts[0].get("account", {})
-                            .get("data", {}).get("parsed", {})
-                            .get("info", {}).get("tokenAmount", {}))
-            result["synx_balance"] = float(token_amount.get("uiAmount", 0) or 0)
-        price = 0.0
-        # 1) DexScreener — основной источник для pump.fun токенов
+
+    # ── 1. Баланс через Solana RPC (fallback chain) ────────────────────────
+    RPC_ENDPOINTS = [
+        "https://api.mainnet-beta.solana.com",
+        "https://rpc.ankr.com/solana",
+        "https://solana-mainnet.rpc.extrnode.com",
+        "https://mainnet.rpcpool.com",
+    ]
+    rpc_payload = {
+        "jsonrpc": "2.0", "id": 1,
+        "method": "getTokenAccountsByOwner",
+        "params": [
+            wallet_address,
+            {"mint": SYNX_MINT},
+            {"encoding": "jsonParsed"},
+        ],
+    }
+    balance_fetched = False
+    for rpc_url in RPC_ENDPOINTS:
         try:
-            dex_r = _req.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{SYNX_MINT}",
+            r = _req.post(rpc_url, json=rpc_payload, timeout=7)
+            if not r.ok:
+                log.warning(f"[WALLET] RPC {rpc_url[:40]} HTTP {r.status_code}")
+                continue
+            rpc_data = r.json()
+            if "error" in rpc_data:
+                log.warning(f"[WALLET] RPC {rpc_url[:40]} error: {rpc_data['error']}")
+                continue
+            accounts = rpc_data.get("result", {}).get("value", [])
+            if accounts:
+                token_amount = (accounts[0].get("account", {})
+                                .get("data", {}).get("parsed", {})
+                                .get("info", {}).get("tokenAmount", {}))
+                result["synx_balance"] = float(token_amount.get("uiAmount", 0) or 0)
+            log.info(f"[WALLET] RPC OK ({rpc_url[:30]}): balance={result['synx_balance']:.0f} SYNX")
+            balance_fetched = True
+            break
+        except Exception as e:
+            log.warning(f"[WALLET] RPC {rpc_url[:40]} failed: {e}")
+            continue
+
+    if not balance_fetched:
+        log.error(f"[WALLET] Все Solana RPC недоступны для {wallet_address[:8]}...")
+
+    # ── 2. Цена $SYNX (fallback chain) ────────────────────────────────────
+    price = 0.0
+
+    # 2a) DexScreener — лучший для pump.fun токенов
+    try:
+        dex_r = _req.get(
+            f"https://api.dexscreener.com/latest/dex/tokens/{SYNX_MINT}",
+            timeout=6
+        )
+        if dex_r.ok:
+            pairs = dex_r.json().get("pairs") or []
+            pairs_sorted = sorted(
+                pairs,
+                key=lambda p: float((p.get("liquidity") or {}).get("usd", 0) or 0),
+                reverse=True
+            )
+            if pairs_sorted:
+                price = float(pairs_sorted[0].get("priceUsd", 0) or 0)
+                log.info(f"[WALLET] DexScreener price: ${price:.8f}")
+    except Exception as e:
+        log.warning(f"[WALLET] DexScreener error: {e}")
+
+    # 2b) Birdeye — fallback
+    if price == 0.0:
+        try:
+            bird_r = _req.get(
+                f"https://public-api.birdeye.so/defi/price?address={SYNX_MINT}",
+                headers={"X-API-KEY": "public", "x-chain": "solana"},
                 timeout=5
             )
-            if dex_r.ok:
-                pairs = dex_r.json().get("pairs") or []
-                # Берём пару с наибольшей ликвидностью
-                pairs_sorted = sorted(pairs, key=lambda p: float(p.get("liquidity", {}).get("usd", 0) or 0), reverse=True)
-                if pairs_sorted:
-                    price = float(pairs_sorted[0].get("priceUsd", 0) or 0)
-        except Exception:
-            pass
-        # 2) Jupiter v6 — fallback
-        if price == 0.0:
-            try:
-                jup_r = _req.get(
-                    f"https://price.jup.ag/v6/price?ids={SYNX_MINT}", timeout=5
-                )
-                if jup_r.ok:
-                    price_data = jup_r.json().get("data", {}).get(SYNX_MINT, {})
-                    price = float(price_data.get("price", 0) or 0)
-            except Exception:
-                pass
-        result["synx_price_usd"] = price
-        result["usd_value"] = round(result["synx_balance"] * price, 4)
-        result["has_premium_amount"] = result["usd_value"] >= 19.99
-    except Exception as e:
-        log.warning(f"[WALLET] check_synx_balance error: {e}")
+            if bird_r.ok:
+                price = float((bird_r.json().get("data") or {}).get("value", 0) or 0)
+                if price:
+                    log.info(f"[WALLET] Birdeye price: ${price:.8f}")
+        except Exception as e:
+            log.warning(f"[WALLET] Birdeye error: {e}")
+
+    # 2c) Jupiter v6 — последний fallback
+    if price == 0.0:
+        try:
+            jup_r = _req.get(
+                f"https://price.jup.ag/v6/price?ids={SYNX_MINT}", timeout=5
+            )
+            if jup_r.ok:
+                price_data = jup_r.json().get("data", {}).get(SYNX_MINT, {})
+                price = float(price_data.get("price", 0) or 0)
+                if price:
+                    log.info(f"[WALLET] Jupiter price: ${price:.8f}")
+        except Exception as e:
+            log.warning(f"[WALLET] Jupiter error: {e}")
+
+    if price == 0.0:
+        log.error(f"[WALLET] Цена $SYNX не найдена ни в одном источнике (mint={SYNX_MINT})")
+
+    result["synx_price_usd"] = price
+    result["usd_value"] = round(result["synx_balance"] * price, 4)
+    result["has_premium_amount"] = result["usd_value"] >= 19.99
+    log.info(f"[WALLET] Итог: {result['synx_balance']:.0f} SYNX × ${price:.8f} = ${result['usd_value']:.2f} USD")
     return result
 
 
